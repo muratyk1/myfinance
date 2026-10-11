@@ -739,7 +739,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div style="margin-bottom:6px;">
       <div style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Alımlar</div>
       <div id="mv-alimlar-list"></div>
-      <button class="add-alim-btn" onclick="mvAddAlim()">+ Alım Ekle</button>
+      <button class="add-alim-btn" onclick="mvAddAlim()">+ Alım / Satış Ekle</button>
     </div>
 
     <!-- Mevcut değer -->
@@ -2244,51 +2244,74 @@ function saveZekatOdeme(){
 function migrateMalvarlik(){
   state.malvarlik.forEach(item=>{
     if(!item.alimlar){
+      // Eski yapıdan yeni yapıya geç
       item.alimlar = [{
         id: uid(),
+        tip: 'alım',
         tarih: item.tarih||'',
         pay: item.payAlis!=null?item.payAlis:100,
         tutar: item.alis||0,
-        currency: 'TL'
+        currency: 'TL',
+        kurUSD: 0, kurEUR: 0, kurALTIN_GR: 0
       }];
       delete item.alis;
       delete item.tarih;
       delete item.payAlis;
+    } else {
+      // Mevcut alımlar için tip ve kur alanları ekle
+      item.alimlar.forEach(a=>{
+        if(!a.tip) a.tip = 'alım';
+        if(!a.kurUSD) a.kurUSD = 0;
+        if(!a.kurEUR) a.kurEUR = 0;
+        if(!a.kurALTIN_GR) a.kurALTIN_GR = 0;
+      });
     }
   });
 }
 
-// Convert alım tutarı → TL, alım tarihindeki kuru kullanarak
-// alim objesi: {tutar, currency, kurUSD?, kurEUR?, kurALTIN_GR?}
-function alimToTL(alim){
-  const a = parseFloat(alim.tutar)||0;
-  const pay = (alim.pay!=null?alim.pay:100)/100;
+// İşlem kaydı (alım veya satım) TL'ye çevirme — alım tarihindeki kurlarla
+// Her işlemde 3 kur alanı saklanır: kurUSD, kurEUR, kurALTIN_GR
+// Böylece o tarihteki TL tutarını tüm dövizlere çevirmek mümkün olur
+function islemToTL(islem){
+  const tutar = parseFloat(islem.tutar)||0;
+  const pay = (islem.pay!=null?islem.pay:100)/100;
   const k = state.kurlar;
-  let kur;
-  switch(alim.currency){
-    case 'TL': return a * pay;
-    case 'USD':
-      kur = parseFloat(alim.kurUSD) || k.USD || 1;
-      return a * kur * pay;
-    case 'EUR':
-      kur = parseFloat(alim.kurEUR) || k.EUR || 1;
-      return a * kur * pay;
-    case 'ALTIN_GR':
-      kur = parseFloat(alim.kurALTIN_GR) || k.ALTIN_GR || 1;
-      return a * kur * pay;
-    default: return a * pay;
+  let tlTutar;
+  switch(islem.currency){
+    case 'TL':       tlTutar = tutar; break;
+    case 'USD':      tlTutar = tutar * (parseFloat(islem.kurUSD) || k.USD || 1); break;
+    case 'EUR':      tlTutar = tutar * (parseFloat(islem.kurEUR) || k.EUR || 1); break;
+    case 'ALTIN_GR': tlTutar = tutar * (parseFloat(islem.kurALTIN_GR) || k.ALTIN_GR || 1); break;
+    default:         tlTutar = tutar; break;
+  }
+  return tlTutar * pay;
+}
+
+// Tarihteki tüm kurlarla TL tutarını istenen dövize çevir (alım tarihi için)
+// tarihselKurlar: {kurUSD, kurEUR, kurALTIN_GR} — girilmemişse güncel kura düşer
+function tlToTarihselCur(tl, currency, tarihselKurlar){
+  const k = state.kurlar;
+  const kUSD = parseFloat(tarihselKurlar&&tarihselKurlar.kurUSD) || k.USD || 1;
+  const kEUR = parseFloat(tarihselKurlar&&tarihselKurlar.kurEUR) || k.EUR || 1;
+  const kALT = parseFloat(tarihselKurlar&&tarihselKurlar.kurALTIN_GR) || k.ALTIN_GR || 1;
+  switch(currency){
+    case 'TL':       return {val:tl,          sym:'₺'};
+    case 'USD':      return {val:tl/kUSD,      sym:'$'};
+    case 'EUR':      return {val:tl/kEUR,      sym:'€'};
+    case 'ALTIN_GR': return {val:tl/kALT,      sym:'gr'};
+    default:         return {val:tl,           sym:'₺'};
   }
 }
 
-// TL tutarını istenen para birimine çevir — güncel kur kullanılır
+// TL tutarını güncel kura göre dövize çevir (satış/mevcut değer için)
 function tlToCur(tl, currency){
   const k = state.kurlar;
   switch(currency){
-    case 'TL': return {val:tl, sym:'₺'};
-    case 'USD': return {val:tl/(k.USD||1), sym:'$'};
-    case 'EUR': return {val:tl/(k.EUR||1), sym:'€'};
+    case 'TL':       return {val:tl,              sym:'₺'};
+    case 'USD':      return {val:tl/(k.USD||1),   sym:'$'};
+    case 'EUR':      return {val:tl/(k.EUR||1),   sym:'€'};
     case 'ALTIN_GR': return {val:tl/(k.ALTIN_GR||1), sym:'gr'};
-    default: return {val:tl, sym:'₺'};
+    default:         return {val:tl, sym:'₺'};
   }
 }
 
@@ -2297,18 +2320,20 @@ function fmtCur(tl, currency){
   return fmt(val)+' '+sym;
 }
 
-// Compute totals for an asset item
+// Tüm işlemlerden alış/satış TL toplamları ve pay hesapları
 function calcAssetTotals(item){
-  const alimlar = item.alimlar||[];
-  // Total alış maliyeti in TL (her alımın kendi tarihindeki kurunu kullanarak)
-  const alisTL = alimlar.reduce((s,a)=> s + alimToTL(a), 0);
-  // Total pay% from alimlar
+  const islemler = item.alimlar||[];
+  // Alımlar ve satımlar ayrı
+  const alimlar = islemler.filter(a=>a.tip!=='satım');
+  const satimlar = islemler.filter(a=>a.tip==='satım');
+  const alisTL   = alimlar.reduce((s,a)=> s + islemToTL(a), 0);
+  const satimTL  = satimlar.reduce((s,a)=> s + islemToTL(a), 0);
   const toplamPay = alimlar.reduce((s,a)=>s+(parseFloat(a.pay)||0),0);
   // Current value based on rayiç * payMevcut (TL cinsinden)
   const rayicTL = (item.rayic||0) * ((item.payMevcut!=null?item.payMevcut:100)/100);
-  const karTL = rayicTL - alisTL;
+  const karTL = rayicTL - alisTL + satimTL; // satımlar kar olarak eklenir (realize)
   const karPct = alisTL>0?((karTL/alisTL)*100):null;
-  return {alisTL, rayicTL, karTL, karPct, toplamPay};
+  return {alisTL, satimTL, rayicTL, karTL, karPct, toplamPay, alimlar, satimlar};
 }
 
 function renderMalvarlik(){
@@ -2327,49 +2352,78 @@ function renderMalvarlik(){
   const CUR_LABELS = {TL:'₺ TL', USD:'$ USD', EUR:'€ EUR', ALTIN_GR:'gr Altın'};
 
   cont.innerHTML = items.map(item=>{
-    const {alisTL, rayicTL, karTL, karPct, toplamPay} = calcAssetTotals(item);
-    const alimlar = item.alimlar||[];
+    const {alisTL, satimTL, rayicTL, karTL, karPct, toplamPay, alimlar, satimlar} = calcAssetTotals(item);
+    const tumIslemler = item.alimlar||[];
 
-    // Tranche list
-    const tranchesHtml = alimlar.length>1 ? `<div class="asset-tranche-list">${
-      alimlar.map(a=>{
-        const tutarTL = toTLMV(a.tutar,a.currency);
-        const payTL = tutarTL*(parseFloat(a.pay)||100)/100;
+    // İşlem listesi özeti (birden fazla kayıt varsa)
+    const tranchesHtml = tumIslemler.length>1 ? `<div class="asset-tranche-list">${
+      tumIslemler.map(a=>{
+        const tlTutar = islemToTL(a);
+        const tipLabel = a.tip==='satım'?'Satış':'Alış';
+        const tipColor = a.tip==='satım'?'var(--red)':'var(--green)';
+        const sym = a.currency==='TL'?'₺':a.currency==='USD'?'$':a.currency==='EUR'?'€':'gr';
         return `<div class="asset-tranche">`+
-          `<span style="color:var(--text2)">%${a.pay||100} · ${a.tarih||'—'} · ${a.currency}</span>`+
-          `<span>${fmt(a.tutar)} ${a.currency==='TL'?'₺':a.currency==='USD'?'$':a.currency==='EUR'?'€':'gr'} → ${fmtTL(payTL)}</span>`+
+          `<span style="color:${tipColor};font-weight:600;">${tipLabel}</span>`+
+          `<span style="color:var(--text2)"> %${a.pay||100} · ${a.tarih||'—'}</span>`+
+          `<span>${fmt(a.tutar)} ${sym} → ${fmtTL(tlTutar)}</span>`+
           `</div>`;
       }).join('')
-    }</div>` : (alimlar.length===1 && alimlar[0].tarih ? `<div class="asset-tranche"><span style="color:var(--text2)">Tarih: ${alimlar[0].tarih}</span></div>` : '');
+    }</div>` : (tumIslemler.length===1 && tumIslemler[0].tarih ? `<div class="asset-tranche"><span style="color:var(--text2)">Tarih: ${tumIslemler[0].tarih}</span></div>` : '');
 
-    // P&L table
-    const hasData = alisTL > 0 && rayicTL > 0;
+    // P&L table — alış değerleri için tarihsel kurlar, mevcut için güncel kur
+    // Her döviz için alış değerini o tarihteki kurla hesapla
+    // Birden fazla alım varsa ağırlıklı ortalama TL değeri üzerinden çevir
+    // (bireysel tarihsel kur * bireysel tutar toplamı)
+    const hasData = alisTL > 0;
     const pnlHtml = hasData ? `<table class="asset-pnl-table">
-      <thead><tr><th>Birim</th><th>Alış</th><th>Mevcut</th><th>Kar/Zarar</th><th>%</th></tr></thead>
+      <thead><tr><th>Birim</th><th>Alış</th><th>${satimlar.length>0?'Satış':'Mevcut'}</th><th>Kar/Zarar</th><th>%</th></tr></thead>
       <tbody>${CURRENCIES.map(cur=>{
-        const alisVal = tlToCur(alisTL, cur);
-        const mevcutVal = tlToCur(rayicTL, cur);
-        const karVal = tlToCur(Math.abs(karTL), cur);
-        const sign = karTL>=0?'▲':'▼';
-        const cls = karTL>=0?'pos':'neg';
-        const pct = karPct!=null?((karTL>=0?'+':'-')+Math.abs(karPct).toFixed(1)+'%'):'—';
+        // Alış: her alımı kendi tarihsel kuruyla dövize çevir, sonra topla
+        const alisVal = alimlar.reduce((s,a)=>{
+          const tlA = islemToTL(a);
+          const cv = tlToTarihselCur(tlA, cur, a);
+          return s + cv.val;
+        }, 0);
+        const alisSym = cur==='TL'?'₺':cur==='USD'?'$':cur==='EUR'?'€':'gr';
+        // Satış varsa: satımları da kendi tarihsel kuruyla hesapla
+        const satisVal = satimlar.reduce((s,a)=>{
+          const tlA = islemToTL(a);
+          const cv = tlToTarihselCur(tlA, cur, a);
+          return s + cv.val;
+        }, 0);
+        // Mevcut değer: güncel kur
+        const mevcutCv = tlToCur(rayicTL, cur);
+        // Kar: satım varsa satım-alış, yoksa mevcut-alış (tüm değerler o birimin kendi kuruyla)
+        let karVal, karSign, karCls;
+        if(satimlar.length>0){
+          karVal = satisVal - alisVal;
+        } else {
+          karVal = mevcutCv.val - alisVal;
+        }
+        karSign = karVal>=0?'▲':'▼';
+        karCls  = karVal>=0?'pos':'neg';
+        const karPctVal = alisVal>0?((karVal/alisVal)*100):null;
+        const pct = karPctVal!=null?((karVal>=0?'+':'-')+Math.abs(karPctVal).toFixed(1)+'%'):'—';
+        const mevcutShow = satimlar.length>0
+          ? `${fmt(satisVal)} ${alisSym}`
+          : `${fmt(mevcutCv.val)} ${mevcutCv.sym}`;
         return `<tr>`+
           `<td>${CUR_LABELS[cur]}</td>`+
-          `<td class="neutral">${fmt(alisVal.val)} ${alisVal.sym}</td>`+
-          `<td class="neutral">${fmt(mevcutVal.val)} ${mevcutVal.sym}</td>`+
-          `<td class="${cls}">${sign} ${fmt(karVal.val)} ${karVal.sym}</td>`+
-          `<td class="${cls}">${pct}</td>`+
+          `<td class="neutral">${fmt(alisVal)} ${alisSym}</td>`+
+          `<td class="neutral">${mevcutShow}</td>`+
+          `<td class="${karCls}">${karSign} ${fmt(Math.abs(karVal))} ${alisSym}</td>`+
+          `<td class="${karCls}">${pct}</td>`+
           `</tr>`;
       }).join('')}</tbody>
-    </table>` : (alisTL>0||rayicTL>0?`<div style="font-size:11px;color:var(--text2);margin-top:6px;">${alisTL>0?`Alış: ${fmtTL(alisTL)}`:''} ${rayicTL>0?`· Rayiç: ${fmtTL(rayicTL)}`:''}</div>`:'');
+    </table>` : (rayicTL>0?`<div style="font-size:11px;color:var(--text2);margin-top:6px;">Rayiç: ${fmtTL(rayicTL)}</div>`:'');
 
     return `<div class="asset-row" onclick="openMalvarlikEdit('${item.id}')">
       <div class="asset-name">${item.ad}</div>
       <div class="asset-grid">
-        <div class="asset-kv">Toplam Alış Payım<span>${alisTL?fmtTL(alisTL):'—'}</span></div>
-        <div class="asset-kv">Mevcut Payım<span>${rayicTL?fmtTL(rayicTL):'—'}</span></div>
-        <div class="asset-kv">Alım Sayısı<span>${alimlar.length} alım${alimlar.length>1?' · %'+toplamPay.toFixed(0):' · %'+(alimlar[0]&&alimlar[0].pay!=null?alimlar[0].pay:100)}</span></div>
-        <div class="asset-kv">Mevcut Pay<span>%${item.payMevcut!=null?item.payMevcut:100}</span></div>
+        <div class="asset-kv">Toplam Alış Maliyeti<span>${alisTL?fmtTL(alisTL):'—'}</span></div>
+        <div class="asset-kv">${satimlar.length>0?'Satış Geliri':'Mevcut Değer'}<span>${satimlar.length>0?fmtTL(satimTL):rayicTL?fmtTL(rayicTL):'—'}</span></div>
+        <div class="asset-kv">Alım Sayısı<span>${alimlar.length} alım${satimlar.length>0?' · '+satimlar.length+' satım':''}</span></div>
+        <div class="asset-kv">Kar/Zarar (₺)<span style="color:${karTL>=0?'var(--green)':'var(--red)'}">${karTL!==0?(karTL>=0?'▲ ':'▼ ')+fmtTL(Math.abs(karTL)):'—'}</span></div>
       </div>
       ${tranchesHtml}
       ${pnlHtml}
@@ -2387,36 +2441,54 @@ function mvRenderAlimlarInModal(){
   const list = document.getElementById('mv-alimlar-list');
   if(!list) return;
   list.innerHTML = mvAlimlarTemp.map((a,i)=>{
-    const isFX = a.currency !== 'TL';
-    const kurLabel = a.currency==='USD'?'Alım Günü $ Kuru (₺/$)':
-                     a.currency==='EUR'?'Alım Günü € Kuru (₺/€)':
-                     a.currency==='ALTIN_GR'?'Alım Günü Altın Kuru (₺/gr)':'';
-    const kurField = a.currency==='USD'?'kurUSD':a.currency==='EUR'?'kurEUR':'kurALTIN_GR';
-    const kurVal = a[kurField]||'';
-    const kurPlaceholder = a.currency==='USD'?String(state.kurlar.USD||''):
-                           a.currency==='EUR'?String(state.kurlar.EUR||''):
-                           String(state.kurlar.ALTIN_GR||'');
+    const isSatim = a.tip==='satım';
+    const tipLabel = isSatim ? 'Satış' : 'Alış';
+    const tipColor = isSatim ? 'var(--red)' : 'var(--green)';
+    const k = state.kurlar;
     // TL karşılığı önizleme
-    const tlKaршılığı = (isFX && parseFloat(a.tutar) && parseFloat(a[kurField]))
-      ? `<div style="font-size:11px;color:var(--accent2);margin-top:6px;padding:5px 8px;background:rgba(108,99,255,0.08);border-radius:6px;">
-           Alış maliyetim (TL): <b>${fmtTL(alimToTL(a))}</b>
-         </div>`
-      : '';
-    return `<div class="alim-row">
+    const tlTutar = islemToTL(a);
+    const hasTutar = parseFloat(a.tutar)>0;
+    // Diğer döviz karşılıkları (tarihteki kurlarla)
+    let previewHtml = '';
+    if(hasTutar){
+      const tlV = tlTutar.toFixed(0);
+      const usdV = (parseFloat(a.kurUSD)||k.USD||1);
+      const eurV = (parseFloat(a.kurEUR)||k.EUR||1);
+      const altV = (parseFloat(a.kurALTIN_GR)||k.ALTIN_GR||1);
+      const usdEq = (tlTutar/usdV).toFixed(2);
+      const eurEq = (tlTutar/eurV).toFixed(2);
+      const altEq = (tlTutar/altV).toFixed(4);
+      previewHtml = `<div style="margin-top:8px;padding:8px;background:rgba(108,99,255,0.08);border-radius:8px;font-size:11px;">
+        <div style="color:var(--text2);margin-bottom:4px;font-weight:600;">${tipLabel} tarihi itibarıyla:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+          <div><div style="color:var(--text2)">₺ TL</div><b style="color:var(--text)">${fmt(parseFloat(tlV))}</b></div>
+          <div><div style="color:var(--text2)">$ USD</div><b style="color:var(--text)">${fmt(parseFloat(usdEq))}</b></div>
+          <div><div style="color:var(--text2)">€ EUR</div><b style="color:var(--text)">${fmt(parseFloat(eurEq))}</b></div>
+          <div><div style="color:var(--text2)">gr Altın</div><b style="color:var(--text)">${fmt(parseFloat(altEq))}</b></div>
+        </div>
+      </div>`;
+    }
+    return `<div class="alim-row" style="border-left:3px solid ${tipColor};">
       <div class="alim-row-header">
-        <span class="alim-row-title">Alım ${i+1}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="alim-row-title" style="color:${tipColor};">${tipLabel} ${i+1}</span>
+          <select class="alim-select" style="font-size:11px;padding:2px 6px;background:rgba(0,0,0,0.3);" onchange="mvAlimlarTemp[${i}].tip=this.value;mvRenderAlimlarInModal()">
+            <option value="alım" ${!isSatim?'selected':''}>Alış</option>
+            <option value="satım" ${isSatim?'selected':''}>Satış</option>
+          </select>
+        </div>
         ${mvAlimlarTemp.length>1?`<button class="alim-del-btn" onclick="mvRemoveAlim(${i})">×</button>`:''}
       </div>
       <div class="alim-fields-3" style="margin-bottom:8px;">
         <div>
           <label class="alim-label">Tarih</label>
-          <input type="text" class="alim-input" placeholder="Örn: 2023-05" value="${a.tarih||''}"
+          <input type="text" class="alim-input" placeholder="GG.AA.YYYY" value="${a.tarih||''}"
             oninput="mvAlimlarTemp[${i}].tarih=this.value">
         </div>
         <div>
           <label class="alim-label">Pay %</label>
           <input type="number" class="alim-input" placeholder="100" min="0" max="100" step="any" value="${a.pay!=null?a.pay:100}"
-            oninput="mvAlimlarTemp[${i}].pay=parseFloat(this.value)||0">
+            oninput="mvAlimlarTemp[${i}].pay=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
         </div>
         <div>
           <label class="alim-label">Para Birimi</label>
@@ -2425,19 +2497,30 @@ function mvRenderAlimlarInModal(){
           </select>
         </div>
       </div>
-      <div class="${isFX?'alim-fields':''}">
-        <div>
-          <label class="alim-label">Alış Tutarı (${mvCurSym(a.currency)})</label>
-          <input type="number" class="alim-input" placeholder="0" step="any" value="${a.tutar||''}"
-            oninput="mvAlimlarTemp[${i}].tutar=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
-        </div>
-        ${isFX?`<div>
-          <label class="alim-label">${kurLabel}</label>
-          <input type="number" class="alim-input" placeholder="${kurPlaceholder}" step="any" value="${kurVal}"
-            oninput="mvAlimlarTemp[${i}].${kurField}=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
-        </div>`:''}
+      <div style="margin-bottom:8px;">
+        <label class="alim-label">${tipLabel} Tutarı (${mvCurSym(a.currency)})</label>
+        <input type="number" class="alim-input" placeholder="0" step="any" value="${a.tutar||''}"
+          oninput="mvAlimlarTemp[${i}].tutar=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
       </div>
-      <div id="mv-tl-preview-${i}">${tlKaршılığı}</div>
+      <div style="margin-bottom:4px;font-size:11px;color:var(--text2);font-weight:600;">${tipLabel} Tarihi Kurları</div>
+      <div class="alim-fields-3" style="margin-bottom:4px;">
+        <div>
+          <label class="alim-label">₺/$ Kuru</label>
+          <input type="number" class="alim-input" placeholder="${k.USD||''}" step="any" value="${a.kurUSD||''}"
+            oninput="mvAlimlarTemp[${i}].kurUSD=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
+        </div>
+        <div>
+          <label class="alim-label">₺/€ Kuru</label>
+          <input type="number" class="alim-input" placeholder="${k.EUR||''}" step="any" value="${a.kurEUR||''}"
+            oninput="mvAlimlarTemp[${i}].kurEUR=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
+        </div>
+        <div>
+          <label class="alim-label">₺/gr Altın</label>
+          <input type="number" class="alim-input" placeholder="${k.ALTIN_GR||''}" step="any" value="${a.kurALTIN_GR||''}"
+            oninput="mvAlimlarTemp[${i}].kurALTIN_GR=parseFloat(this.value)||0;mvRefreshTLPreview(${i})">
+        </div>
+      </div>
+      <div id="mv-tl-preview-${i}">${previewHtml}</div>
     </div>`;
   }).join('');
 }
@@ -2446,19 +2529,28 @@ function mvRefreshTLPreview(i){
   const a = mvAlimlarTemp[i];
   const el = document.getElementById('mv-tl-preview-'+i);
   if(!el) return;
-  const isFX = a.currency !== 'TL';
-  const kurField = a.currency==='USD'?'kurUSD':a.currency==='EUR'?'kurEUR':'kurALTIN_GR';
-  if(isFX && parseFloat(a.tutar) && parseFloat(a[kurField])){
-    el.innerHTML = `<div style="font-size:11px;color:var(--accent2);margin-top:6px;padding:5px 8px;background:rgba(108,99,255,0.08);border-radius:6px;">
-      Alış maliyetim (TL): <b>${fmtTL(alimToTL(a))}</b>
-    </div>`;
-  } else {
-    el.innerHTML = '';
-  }
+  const k = state.kurlar;
+  const isSatim = a.tip==='satım';
+  const tipLabel = isSatim?'Satış':'Alış';
+  const hasTutar = parseFloat(a.tutar)>0;
+  if(!hasTutar){ el.innerHTML=''; return; }
+  const tlTutar = islemToTL(a);
+  const usdV = parseFloat(a.kurUSD)||k.USD||1;
+  const eurV = parseFloat(a.kurEUR)||k.EUR||1;
+  const altV = parseFloat(a.kurALTIN_GR)||k.ALTIN_GR||1;
+  el.innerHTML = `<div style="margin-top:8px;padding:8px;background:rgba(108,99,255,0.08);border-radius:8px;font-size:11px;">
+    <div style="color:var(--text2);margin-bottom:4px;font-weight:600;">${tipLabel} tarihi itibarıyla:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;">
+      <div><div style="color:var(--text2)">₺ TL</div><b style="color:var(--text)">${fmt(tlTutar)}</b></div>
+      <div><div style="color:var(--text2)">$ USD</div><b style="color:var(--text)">${fmt(tlTutar/usdV)}</b></div>
+      <div><div style="color:var(--text2)">€ EUR</div><b style="color:var(--text)">${fmt(tlTutar/eurV)}</b></div>
+      <div><div style="color:var(--text2)">gr Altın</div><b style="color:var(--text)">${fmt(tlTutar/altV)}</b></div>
+    </div>
+  </div>`;
 }
 
 function mvAddAlim(){
-  mvAlimlarTemp.push({id:uid(),tarih:'',pay:0,tutar:0,currency:'TL'});
+  mvAlimlarTemp.push({id:uid(),tip:'alım',tarih:'',pay:0,tutar:0,currency:'TL',kurUSD:0,kurEUR:0,kurALTIN_GR:0});
   mvRenderAlimlarInModal();
 }
 
@@ -2476,7 +2568,7 @@ function openMalvarlikModal(){
   document.getElementById('mv-rayic').value = '';
   document.getElementById('mv-pay-mevcut').value = '100';
   document.getElementById('mv-del-btn').style.display = 'none';
-  mvAlimlarTemp = [{id:uid(),tarih:'',pay:100,tutar:0,currency:'TL'}];
+  mvAlimlarTemp = [{id:uid(),tip:'alım',tarih:'',pay:100,tutar:0,currency:'TL',kurUSD:0,kurEUR:0,kurALTIN_GR:0}];
   mvRenderAlimlarInModal();
   openModal('malvarlik-modal');
 }
