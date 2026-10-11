@@ -114,6 +114,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:6px;}
 .mod-btn{flex:1;padding:9px 4px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center;}
 .mod-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.coklu-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+.coklu-row input[type=date]{flex:1.4;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;}
+.coklu-row input[type=number]{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;}
+.coklu-row .del-row{width:32px;height:32px;flex-shrink:0;background:transparent;border:none;color:var(--red);font-size:18px;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;}
 .toggle-label{font-size:14px;color:var(--text);}
 .toggle{width:44px;height:26px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background 0.2s;}
 .toggle.on{background:var(--green);}
@@ -476,7 +480,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <div id="modal-mod-btns" style="display:flex;gap:6px;">
         <button type="button" class="mod-btn active" id="mod-btn-tekrar" onclick="setMod('tekrar')">🔁 Tekrarlayan</button>
         <button type="button" class="mod-btn" id="mod-btn-teksefer" onclick="setMod('teksefer')">📅 Tek Seferlik</button>
-        <button type="button" class="mod-btn" id="mod-btn-manuel" onclick="setMod('manuel')">✏️ Manuel</button>
+        <button type="button" class="mod-btn" id="mod-btn-manuel" onclick="setMod('manuel')">📋 Çoklu Ay</button>
       </div>
     </div>
 
@@ -504,32 +508,46 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       </div>
     </div>
 
-    <!-- MANUEL alanları -->
+    <!-- ÇOKLU AY alanları -->
     <div id="modal-section-manuel" style="display:none;">
-      <div style="background:var(--card2);border-radius:8px;padding:10px;font-size:13px;color:var(--text2);margin-bottom:12px;">
-        Manuel modda bu kalem sadece <strong style="color:var(--text);">bu ay</strong> için eklenir. Tutar her ay ayrı ayrı girilir. Sonraki aylara otomatik taşınmaz.
+      <div style="background:var(--card2);border-radius:8px;padding:10px;font-size:13px;color:var(--text2);margin-bottom:10px;">
+        Her satır için ayrı tarih ve tutar gir. Hepsi tek seferde kaydedilir.
       </div>
-      <div class="form-group">
-        <label class="form-label">Ödeme Günü (bu ay)</label>
-        <input type="number" class="form-input" id="modal-manuel-gun" placeholder="Ayın kaçında? (isteğe bağlı)" min="1" max="31">
-      </div>
-    </div>
-
-    <!-- TUTAR (tüm modlarda) -->
-    <div class="form-group">
-      <label class="form-label">Tutar</label>
-      <div style="display:flex;gap:8px;">
-        <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;" oninput="updateTLPreview()">
-        <select class="form-select" id="modal-para" style="width:100px;" onchange="updateTLPreview()">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">Para Birimi</span>
+        <select class="form-select" id="modal-coklu-para" style="flex:1;">
           <option value="TL">₺ TL</option>
           <option value="USD">$ USD</option>
           <option value="EUR">€ EUR</option>
           <option value="ALTIN">gr Altın</option>
         </select>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;padding:0 2px;">
+        <div style="flex:1.4;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;">Tarih</div>
+        <div style="flex:1;font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;">Tutar</div>
+        <div style="width:32px;"></div>
+      </div>
+      <div id="modal-coklu-rows"></div>
+      <button type="button" onclick="addCokluRow()" style="width:100%;padding:10px;background:transparent;border:1.5px dashed var(--border);border-radius:10px;color:var(--accent);font-size:14px;cursor:pointer;margin-top:4px;">+ Satır Ekle</button>
     </div>
-    <div class="form-group" id="modal-tl-preview" style="display:none;">
-      <div style="font-size:12px;color:var(--text2);">TL Karşılığı: <span id="modal-tl-val" style="color:var(--accent2);font-weight:700;"></span></div>
+
+    <!-- TUTAR (tekrar ve teksefer modlarında) -->
+    <div id="modal-tutar-row">
+      <div class="form-group">
+        <label class="form-label">Tutar</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;" oninput="updateTLPreview()">
+          <select class="form-select" id="modal-para" style="width:100px;" onchange="updateTLPreview()">
+            <option value="TL">₺ TL</option>
+            <option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option>
+            <option value="ALTIN">gr Altın</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" id="modal-tl-preview" style="display:none;">
+        <div style="font-size:12px;color:var(--text2);">TL Karşılığı: <span id="modal-tl-val" style="color:var(--accent2);font-weight:700;"></span></div>
+      </div>
     </div>
 
     <div class="btn-row">
@@ -1222,6 +1240,42 @@ function setMod(mod){
     document.getElementById('mod-btn-'+m).classList.toggle('active', m===mod);
     document.getElementById('modal-section-'+m).style.display = m===mod?'block':'none';
   });
+  // Tutar alanı sadece tekrar ve teksefer modlarında görünür
+  document.getElementById('modal-tutar-row').style.display = mod==='manuel'?'none':'block';
+}
+
+let cokluRowCount = 0;
+
+function addCokluRow(tarih, tutar){
+  cokluRowCount++;
+  const id = 'cr'+cokluRowCount;
+  const today = new Date().toISOString().split('T')[0];
+  const div = document.createElement('div');
+  div.className = 'coklu-row';
+  div.id = id;
+  div.innerHTML = `
+    <input type="date" value="${tarih||today}" placeholder="Tarih">
+    <input type="number" value="${tutar||''}" placeholder="Tutar (TL)" min="0" step="any">
+    <button class="del-row" onclick="removeCokluRow('${id}')" title="Sil">×</button>
+  `;
+  document.getElementById('modal-coklu-rows').appendChild(div);
+}
+
+function removeCokluRow(id){
+  const el = document.getElementById(id);
+  if(el) el.remove();
+}
+
+function getCokluRows(){
+  const rows = document.querySelectorAll('#modal-coklu-rows .coklu-row');
+  const result = [];
+  rows.forEach(row=>{
+    const inputs = row.querySelectorAll('input');
+    const tarih = inputs[0].value;
+    const tutar = parseFloat(inputs[1].value)||0;
+    if(tarih) result.push({tarih, tutar});
+  });
+  return result;
 }
 
 function openAylikModal(){
@@ -1241,10 +1295,13 @@ function openAylikModalFor(tur){
   document.getElementById('modal-bas-tarih').value = todayStr;
   document.getElementById('modal-tek-tarih').value = todayStr;
   document.getElementById('modal-gun').value = today.getDate();
-  document.getElementById('modal-manuel-gun').value = '';
   document.getElementById('modal-sure').value = '';
   document.getElementById('modal-del-btn').style.display = 'none';
   document.getElementById('modal-save-btn').className = 'btn btn-primary btn-full';
+  // Init çoklu rows with 3 blank rows
+  document.getElementById('modal-coklu-rows').innerHTML = '';
+  cokluRowCount = 0;
+  addCokluRow(); addCokluRow(); addCokluRow();
   setMod(tur==='degisken'?'manuel':'tekrar');
   updateTLPreview();
   openModal('aylik-modal');
@@ -1265,18 +1322,27 @@ function openAylikEdit(tur,id){
   const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
   const today = new Date().toISOString().split('T')[0];
 
+  // Init çoklu rows
+  document.getElementById('modal-coklu-rows').innerHTML = '';
+  cokluRowCount = 0;
+
   if(mod==='teksefer'){
     document.getElementById('modal-tek-tarih').value = item.tarih||today;
     document.getElementById('modal-bas-tarih').value = today;
     document.getElementById('modal-gun').value = '';
     document.getElementById('modal-sure').value = '';
-    document.getElementById('modal-manuel-gun').value = '';
+    addCokluRow(); addCokluRow(); addCokluRow();
   } else if(mod==='manuel'){
     document.getElementById('modal-bas-tarih').value = today;
     document.getElementById('modal-tek-tarih').value = today;
     document.getElementById('modal-gun').value = '';
     document.getElementById('modal-sure').value = '';
-    document.getElementById('modal-manuel-gun').value = item.odemeTarih||'';
+    // Populate rows from cokluAylar if present, else single row
+    if(item.cokluAylar && item.cokluAylar.length){
+      item.cokluAylar.forEach(r=>addCokluRow(r.tarih, r.tutar));
+    } else {
+      addCokluRow(item.tarih||today, item.amount||'');
+    }
   } else {
     // tekrar
     document.getElementById('modal-bas-tarih').value = item.basTarih||today;
@@ -1343,23 +1409,41 @@ function saveAylikItem(){
     // Update curYear/curMonth to go to that month
     curYear=y; curMonth=m;
   } else if(mod==='manuel'){
-    const gun = parseInt(document.getElementById('modal-manuel-gun').value)||null;
-    newItem.odemeTarih = gun;
-    newItem.recurring = false;
-    newItem.basTarih = null;
-    newItem.sure = null;
-    const d = getMonthData(curYear,curMonth);
+    // Çoklu ay modu: her satır ayrı aya kaydedilir
+    const rows = getCokluRows();
+    if(!rows.length){showToast('En az bir satır girin');return;}
+    const currency = document.getElementById('modal-coklu-para').value;
+
+    // Eğer düzenleme modundaysa önce mevcut kaydı sil
     if(aylikEditCtx){
-      const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
-      if(aylikEditCtx.tur !== tur){
-        d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
-        d[tur].push({...newItem, id:item.id});
-      } else {
-        Object.assign(item, newItem, {id:item.id});
-      }
-    } else {
-      d[tur].push(newItem);
+      const d = getMonthData(curYear,curMonth);
+      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
     }
+
+    // Her satırı ilgili aya ekle
+    let firstY=null, firstM=null;
+    rows.forEach((row,i)=>{
+      const [ry,rm] = row.tarih.split('-').map(Number);
+      const rd = parseInt(row.tarih.split('-')[2]);
+      if(i===0){firstY=ry;firstM=rm;}
+      const key = getMonthKey(ry,rm);
+      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[]};
+      ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
+      const entry = {
+        id:uid(), name, amount:row.tutar, currency,
+        mod:'manuel', recurring:false,
+        tarih:row.tarih, odemeTarih:rd,
+        taksit:null, kalanTaksit:null, basTarih:null, sure:null,
+        paid:false
+      };
+      aylikData[key][tur].push(entry);
+    });
+    if(firstY) {curYear=firstY; curMonth=firstM;}
+    saveAylik();
+    closeModal('aylik-modal');
+    renderAylik();
+    showToast(`${rows.length} aya kaydedildi`);
+    return;
   } else {
     // tekrar
     const basTarih = document.getElementById('modal-bas-tarih').value;
