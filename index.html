@@ -1004,13 +1004,14 @@ function getMonthData(y,m){
       function carryItems(list){
         return list.filter(i=>{
           const mod = i.mod || (i.recurring===false?'manuel':'tekrar');
-          // teksefer and manuel never carry
+          // teksefer ve manuel taşınmaz
           if(mod==='teksefer' || mod==='manuel') return false;
           if(i.recurring===false) return false;
+          // grupId olanlar zaten tüm aylara yazıldı, tekrar taşıma
+          if(i.grupId) return false;
           return true;
         }).map(i=>{
           const ni = {...i, id:uid(), paid:false};
-          // decrement kalanTaksit if set
           if(ni.kalanTaksit!=null && ni.kalanTaksit>0) ni.kalanTaksit--;
           return ni;
         }).filter(i=>i.kalanTaksit==null||i.kalanTaksit>0||i.taksit==null);
@@ -1312,7 +1313,7 @@ function openAylikEdit(tur,id){
   const idx = d[tur].findIndex(i=>i.id===id);
   if(idx<0) return;
   const item = d[tur][idx];
-  aylikEditCtx = {tur,idx,id};
+  aylikEditCtx = {tur,idx,id, grupId: item.grupId||null};
   document.getElementById('aylik-modal-title').textContent = 'Kalemi Düzenle';
   document.getElementById('modal-tur').value = tur;
   document.getElementById('modal-ad').value = item.name;
@@ -1445,30 +1446,52 @@ function saveAylikItem(){
     showToast(`${rows.length} aya kaydedildi`);
     return;
   } else {
-    // tekrar
+    // tekrar — tüm ayları direkt yaz (zincire bağımlı değil)
     const basTarih = document.getElementById('modal-bas-tarih').value;
     const sure = parseInt(document.getElementById('modal-sure').value)||null;
     const gun = parseInt(document.getElementById('modal-gun').value)||null;
     if(!basTarih){showToast('Lütfen başlangıç tarihi girin');return;}
-    newItem.basTarih = basTarih;
-    newItem.sure = sure;
-    newItem.odemeTarih = gun;
-    newItem.recurring = true;
-    newItem.taksit = sure;
-    newItem.kalanTaksit = sure; // will count down
-    // Store in the start month
+
     const [sy,sm] = basTarih.split('-').map(Number);
-    const startKey = getMonthKey(sy,sm);
-    if(!aylikData[startKey]) aylikData[startKey]={gelir:[],sabit:[],degisken:[]};
-    ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[startKey][t])aylikData[startKey][t]=[];});
+    const grupId = (aylikEditCtx && aylikEditCtx.grupId) || ('g'+uid());
+
+    // Eğer düzenleme ise: bu grupId'ye ait tüm eski kayıtları sil
     if(aylikEditCtx){
-      // Remove from current location
-      const d = getMonthData(curYear,curMonth);
-      const oldItem = d[aylikEditCtx.tur][aylikEditCtx.idx];
-      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
-      newItem.id = oldItem.id;
+      Object.keys(aylikData).forEach(k=>{
+        ['gelir','sabit','degisken'].forEach(t=>{
+          if(aylikData[k] && aylikData[k][t]){
+            aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==grupId);
+          }
+        });
+      });
     }
-    aylikData[startKey][tur].push(newItem);
+
+    // sure kadar (ya da süresiz = 120 ay) her aya yaz
+    const toplamAy = sure || 120;
+    for(let i=0; i<toplamAy; i++){
+      let ay = (sm - 1 + i) % 12 + 1;
+      let yil = sy + Math.floor((sm - 1 + i) / 12);
+      const key = getMonthKey(yil, ay);
+      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[]};
+      ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
+      // Aynı grupId ile zaten kayıt varsa ekleme (tekrar çağrılma ihtimaline karşı)
+      if(!aylikData[key][tur].find(x=>x.grupId===grupId)){
+        aylikData[key][tur].push({
+          id: uid(),
+          grupId,
+          name, amount: newItem.amount, currency: newItem.currency,
+          mod: 'tekrar',
+          recurring: true,
+          basTarih,
+          sure,
+          odemeTarih: gun,
+          taksitNo: i+1,    // kaçıncı ay (gösterim için)
+          taksit: toplamAy,
+          kalanTaksit: toplamAy - i,
+          paid: false
+        });
+      }
+    }
     curYear=sy; curMonth=sm;
   }
 
@@ -1480,7 +1503,27 @@ function saveAylikItem(){
 function deleteAylikItem(){
   if(!aylikEditCtx) return;
   const d = getMonthData(curYear,curMonth);
-  d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+  const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
+
+  if(item && item.mod==='tekrar' && item.grupId){
+    // Tekrarlayan: tüm ayları mı yoksa sadece bu ayı mı sil?
+    const tumAylari = confirm(`"${item.name}" tekrarlayan bir kalem.\n\nTÜM AYLARI SİL → Tamam\nSADECE BU AYI SİL → İptal`);
+    if(tumAylari){
+      const gid = item.grupId;
+      Object.keys(aylikData).forEach(k=>{
+        ['gelir','sabit','degisken'].forEach(t=>{
+          if(aylikData[k] && aylikData[k][t]){
+            aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==gid);
+          }
+        });
+      });
+    } else {
+      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+    }
+  } else {
+    d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+  }
+
   saveAylik();
   closeModal('aylik-modal');
   renderAylik();
