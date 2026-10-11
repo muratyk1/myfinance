@@ -777,7 +777,8 @@ async function syncToSheets(){
     const payload = {
       action: 'save',
       state: JSON.stringify(state),
-      aylik: JSON.stringify(aylikData)
+      aylik: JSON.stringify(aylikData),
+      recurring: JSON.stringify(recurringItems)
     };
     const r = await fetch(GAS_URL, {
       method:'POST',
@@ -791,11 +792,13 @@ async function syncToSheets(){
     }
     localStorage.setItem(LS, JSON.stringify(state));
     localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+    localStorage.setItem(LS_RECURRING, JSON.stringify(recurringItems));
   }catch(e){
     console.error('Sync hata:',e);
     showSyncStatus('error','Yerel kaydedildi');
     localStorage.setItem(LS, JSON.stringify(state));
     localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+    localStorage.setItem(LS_RECURRING, JSON.stringify(recurringItems));
   }
 }
 
@@ -810,11 +813,37 @@ async function syncFromSheets(){
     const r = await fetch(GAS_URL+'?action=load');
     const d = await r.json();
     if(d.ok){
-      if(d.state) Object.assign(state, JSON.parse(d.state));
-      if(d.aylik) aylikData = JSON.parse(d.aylik);
+      if(d.state){
+        try{ Object.assign(state, JSON.parse(d.state)); }catch(e){ console.warn('state parse err',e); }
+      }
+      if(d.aylik){
+        try{
+          const remote = JSON.parse(d.aylik);
+          // Safe merge: remote wins for month keys that exist there, keep local for the rest
+          if(remote && typeof remote==='object'){
+            Object.keys(remote).forEach(k=>{ aylikData[k] = remote[k]; });
+          }
+        }catch(e){ console.warn('aylik parse err',e); }
+      }
+      if(d.recurring){
+        try{
+          const remoteRec = JSON.parse(d.recurring);
+          if(Array.isArray(remoteRec) && remoteRec.length>0){
+            // Merge: remote items win by grupId
+            const localMap = {};
+            recurringItems.forEach(r=>{ localMap[r.grupId]=r; });
+            remoteRec.forEach(r=>{ localMap[r.grupId]=r; });
+            recurringItems = Object.values(localMap);
+          }
+        }catch(e){ console.warn('recurring parse err',e); }
+      }
+      // After loading from Sheets, also run migration (in case remote has old-style data)
+      seedDefaultsIfEmpty();
+      migrateRecurringFromAylik();
       showSyncStatus('ok', new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}));
       localStorage.setItem(LS, JSON.stringify(state));
       localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+      localStorage.setItem(LS_RECURRING, JSON.stringify(recurringItems));
     } else {
       throw new Error(d.error||'Yükleme hatası');
     }
@@ -836,6 +865,7 @@ function setGasUrl(url){
 =========================== */
 const LS = 'myfinance_v1';
 const LS_AYLIK = 'butce_v4'; // preserve existing budget data
+const LS_RECURRING = 'butce_recurring_v1'; // lightweight recurring templates
 
 let state = {
   kurlar: {
@@ -861,6 +891,10 @@ let state = {
 
 // Aylık data – uses separate LS key (butce_v4)
 let aylikData = {};
+// Tekrarlayan ve tek seferlik kalemler ayrı listede (hafif, güvenli)
+// Format: [{grupId, name, cat, amount, currency, tur, mod, basTarih, sure, odemeTarih}]
+// mod='tekrar' → basTarih+sure kullan, mod='teksefer' → tarih kullan
+let recurringItems = [];
 let curYear = new Date().getFullYear();
 let curMonth = new Date().getMonth() + 1;
 let aylikTab = 'ozet';
@@ -952,6 +986,98 @@ function loadLocalState(){
     const raw2 = localStorage.getItem(LS_AYLIK);
     if(raw2) aylikData = JSON.parse(raw2);
   }catch(e){}
+  try{
+    const raw3 = localStorage.getItem(LS_RECURRING);
+    if(raw3) recurringItems = JSON.parse(raw3);
+  }catch(e){}
+  seedDefaultsIfEmpty();
+  // Migrate: extract grupId-based recurring items from old aylikData into recurringItems
+  migrateRecurringFromAylik();
+}
+
+function seedDefaultsIfEmpty(){
+  // Only seed if both recurringItems and aylikData are empty (brand new install)
+  if(recurringItems.length > 0) return;
+  if(Object.keys(aylikData).length > 0) return;
+  // Get current month as start date
+  const now = new Date();
+  const basTarih = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  // Seed default gelir
+  DEFAULT_GELIR.forEach(i=>{
+    if(i.mod==='tekrar'){
+      recurringItems.push({
+        grupId: 'g'+uid(), name:i.name, amount:i.amount, currency:i.currency||'TL',
+        tur:'gelir', mod:'tekrar', basTarih, sure:null, odemeTarih:i.odemeTarih||1
+      });
+    }
+  });
+  // Seed default sabit
+  DEFAULT_SABIT.forEach(i=>{
+    if(i.mod==='tekrar'){
+      recurringItems.push({
+        grupId: 'g'+uid(), name:i.name, amount:i.amount, currency:i.currency||'TL',
+        tur:'sabit', mod:'tekrar', basTarih, sure:null, odemeTarih:i.odemeTarih||1
+      });
+    }
+  });
+  // DEFAULT_DEGISKEN items are manuel — store as empty month data placeholder
+  // They appear month-by-month only when amount>0, so skip seeding
+}
+
+function migrateRecurringFromAylik(){
+  // Find recurring items written the old way (120-month loop, has grupId, mod='tekrar')
+  // Deduplicate by grupId — take the first occurrence (lowest taksitNo)
+  const seen = new Set(recurringItems.map(r=>r.grupId));
+  Object.keys(aylikData).sort().forEach(key=>{
+    ['gelir','sabit','degisken'].forEach(tur=>{
+      (aylikData[key][tur]||[]).forEach(i=>{
+        if(i.grupId && !seen.has(i.grupId) && i.mod==='tekrar'){
+          seen.add(i.grupId);
+          recurringItems.push({
+            grupId: i.grupId,
+            name: i.name,
+            cat: i.cat,
+            amount: i.amount,
+            currency: i.currency||'TL',
+            tur,
+            mod: 'tekrar',
+            basTarih: i.basTarih,
+            sure: i.sure,
+            odemeTarih: i.odemeTarih
+          });
+        }
+      });
+    });
+  });
+  // Now remove all old aylikData entries that were written via 120-month loop
+  // (keep only paid=true ones in aylikData as paidMap, and remove the template copies)
+  const recurringGrupIds = new Set(recurringItems.map(r=>r.grupId));
+  Object.keys(aylikData).forEach(key=>{
+    if(!aylikData[key].paidMap) aylikData[key].paidMap = {};
+    ['gelir','sabit','degisken'].forEach(tur=>{
+      if(!aylikData[key][tur]) return;
+      const keep = [];
+      aylikData[key][tur].forEach(i=>{
+        if(i.grupId && recurringGrupIds.has(i.grupId) && i.mod==='tekrar'){
+          // Preserve paid state into paidMap
+          if(i.paid) aylikData[key].paidMap[i.grupId] = true;
+          // Don't keep this entry in aylikData — will be generated dynamically
+        } else {
+          keep.push(i);
+        }
+      });
+      aylikData[key][tur] = keep;
+    });
+    // Clean up empty paidMaps to save space
+    if(Object.keys(aylikData[key].paidMap).length === 0) delete aylikData[key].paidMap;
+  });
+  // Remove entirely empty month keys (no items and no paidMap)
+  Object.keys(aylikData).forEach(key=>{
+    const d = aylikData[key];
+    if((!d.gelir||!d.gelir.length) && (!d.sabit||!d.sabit.length) && (!d.degisken||!d.degisken.length) && !d.paidMap){
+      delete aylikData[key];
+    }
+  });
 }
 
 function loadState(){
@@ -964,6 +1090,7 @@ function saveState(){
 }
 
 function saveAylik(){
+  localStorage.setItem(LS_RECURRING, JSON.stringify(recurringItems));
   syncToSheets();
 }
 
@@ -1043,12 +1170,122 @@ function saveCurrentMonth(){
   saveAylik();
 }
 
+// Verilen ay için stored data + recurringItems'tan dinamik oluşturulan kalemleri birleştir
+function getEffectiveMonthData(y,m){
+  const key = getMonthKey(y,m);
+  // Stored (manuel, teksefer, ödendi işaretleri)
+  const stored = aylikData[key] || {gelir:[],sabit:[],degisken:[],paidMap:{}};
+  const paidMap = stored.paidMap || {};
+  const excludedMap = stored.excludedMap || {};
+
+  // Build effective lists
+  const eff = {
+    gelir: [...(stored.gelir||[])],
+    sabit: [...(stored.sabit||[])],
+    degisken: [...(stored.degisken||[])]
+  };
+
+  // Inject entries from recurringItems for this month
+  const alreadyGrupIds = new Set();
+  ['gelir','sabit','degisken'].forEach(tur=>{
+    eff[tur].forEach(i=>{ if(i.grupId) alreadyGrupIds.add(i.grupId); });
+  });
+
+  recurringItems.forEach(ri=>{
+    if(alreadyGrupIds.has(ri.grupId)) return; // already in stored data
+    if(excludedMap[ri.grupId]) return; // explicitly excluded for this month
+
+    if(ri.mod==='tekrar'){
+      // Check if this month falls within the recurring range
+      const [sy,sm_] = (ri.basTarih||'').split('-').map(Number);
+      if(!sy) return;
+      const monthOffset = (y - sy)*12 + (m - sm_);
+      const toplamAy = ri.sure || 999;
+      if(monthOffset < 0 || monthOffset >= toplamAy) return;
+      const tur = ri.tur||'sabit';
+      // Determine payment day for this month
+      const gun = ri.odemeTarih || 1;
+      const tarih = `${y}-${String(m).padStart(2,'0')}-${String(gun).padStart(2,'0')}`;
+      eff[tur].push({
+        id: ri.grupId+'_'+key,
+        grupId: ri.grupId,
+        name: ri.name,
+        cat: ri.cat,
+        amount: ri.amount,
+        currency: ri.currency||'TL',
+        mod: 'tekrar',
+        recurring: true,
+        basTarih: ri.basTarih,
+        sure: ri.sure,
+        odemeTarih: ri.odemeTarih,
+        taksitNo: monthOffset+1,
+        taksit: ri.sure!=null ? toplamAy : null,
+        kalanTaksit: ri.sure!=null ? toplamAy - monthOffset : null,
+        tarih,
+        paid: paidMap[ri.grupId]||false,
+        _dynamic: true // flag: not stored in aylikData
+      });
+    } else if(ri.mod==='teksefer'){
+      // Check if date falls in this month
+      if(!ri.tarih) return;
+      const [ty,tm] = ri.tarih.split('-').map(Number);
+      if(ty!==y || tm!==m) return;
+      const tur = ri.tur||'gelir';
+      eff[tur].push({
+        id: ri.grupId+'_'+key,
+        grupId: ri.grupId,
+        name: ri.name,
+        cat: ri.cat,
+        amount: ri.amount,
+        currency: ri.currency||'TL',
+        mod: 'teksefer',
+        recurring: false,
+        tarih: ri.tarih,
+        paid: paidMap[ri.grupId]||false,
+        _dynamic: true
+      });
+    }
+  });
+
+  // Ensure paid field on all
+  ['gelir','sabit','degisken'].forEach(tur=>{
+    eff[tur].forEach(i=>{ if(i.paid===undefined) i.paid=false; });
+  });
+
+  return eff;
+}
+
+// Toggle paid state — works for both stored and dynamic items
+function togglePaidState(tur, idx){
+  const eff = getEffectiveMonthData(curYear,curMonth);
+  const item = eff[tur][idx];
+  if(!item) return;
+
+  const key = getMonthKey(curYear,curMonth);
+  if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[],paidMap:{}};
+  if(!aylikData[key].paidMap) aylikData[key].paidMap={};
+
+  if(item._dynamic){
+    // Dynamic recurring item: store paid state in paidMap
+    const current = aylikData[key].paidMap[item.grupId]||false;
+    aylikData[key].paidMap[item.grupId] = !current;
+  } else {
+    // Stored item: toggle directly
+    const storedList = aylikData[key][tur];
+    // Find by id
+    const si = storedList ? storedList.find(x=>x.id===item.id) : null;
+    if(si) si.paid = !si.paid;
+    else item.paid = !item.paid;
+  }
+  saveAylik();
+}
+
 /* ===========================
    AYLИК RENDER
 =========================== */
 function renderAylik(){
   document.getElementById('aylik-month-label').textContent = `${MONTHS_TR[curMonth]} ${curYear}`;
-  const d = getMonthData(curYear,curMonth);
+  const d = getEffectiveMonthData(curYear,curMonth);
 
   const gelirTL = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
   const sabitTL = d.sabit.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
@@ -1100,7 +1337,7 @@ function renderMiniSection(containerId, tur, items, title, icon, total){
         </div>
       </div>
       <div class="section-body">
-        ${nonZero.map(i=>itemHTML(tur,i)).join('')}
+        ${nonZero.map((i,idx)=>itemHTML(tur,i,items.indexOf(i))).join('')}
         ${nonZero.length===0?`<div style="text-align:center;color:var(--text2);padding:16px;font-size:13px;">Henüz veri yok</div>`:''}
         <button style="width:100%;margin-top:8px;padding:10px;background:rgba(108,99,255,0.1);border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-size:13px;cursor:pointer;" onclick="openAylikModalFor('${tur}')">+ ${title} Ekle</button>
       </div>
@@ -1110,25 +1347,24 @@ function renderMiniSection(containerId, tur, items, title, icon, total){
 
 function renderGelirTab(d){
   const el = document.getElementById('gelir-list');
-  el.innerHTML = d.gelir.map(i=>itemHTML('gelir',i)).join('');
+  el.innerHTML = d.gelir.map((i,idx)=>itemHTML('gelir',i,idx)).join('');
   document.getElementById('gelir-empty').style.display = d.gelir.length?'none':'block';
 }
 
 function renderSabitTab(d){
   const el = document.getElementById('sabit-list');
-  el.innerHTML = d.sabit.map(i=>itemHTML('sabit',i)).join('');
+  el.innerHTML = d.sabit.map((i,idx)=>itemHTML('sabit',i,idx)).join('');
 }
 
 function renderDegiskenTab(d){
   const el = document.getElementById('degisken-list');
-  el.innerHTML = d.degisken.map(i=>itemHTML('degisken',i)).join('');
+  el.innerHTML = d.degisken.map((i,idx)=>itemHTML('degisken',i,idx)).join('');
   document.getElementById('degisken-empty').style.display = d.degisken.length?'none':'block';
 }
 
-function itemHTML(tur,item){
+function itemHTML(tur,item,idx){
   const color = CAT_COLORS[item.cat]||'#94a3b8';
   const amountTL = toTL(item.amount, item.currency||'TL');
-  const isFC = item.currency && item.currency!=='TL';
   const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
   let meta = '';
   if(mod==='teksefer' && item.tarih){
@@ -1140,11 +1376,11 @@ function itemHTML(tur,item){
   } else {
     // tekrar
     if(item.odemeTarih) meta += `🔁 Her ayın ${item.odemeTarih}'i`;
-    if(item.kalanTaksit!=null && item.taksit!=null) meta += `${meta?' · ':''}${item.kalanTaksit}/${item.taksit} ay kaldı`;
+    if(item.sure!=null) meta += `${meta?' · ':''}${item.kalanTaksit!=null?item.kalanTaksit+'/'+item.taksit+' ay kaldı':''}`;
   }
   if(item.currency && item.currency!=='TL') meta += `${meta?' · ':''}${fmt(item.amount)} ${item.currency}`;
 
-  return `<div class="item-row" onclick="openAylikEdit('${tur}','${item.id}')">
+  return `<div class="item-row" onclick="openAylikEdit('${tur}',${idx})">
     <div class="item-color" style="background:${color}"></div>
     <div class="item-info">
       <div class="item-name">${item.name}</div>
@@ -1152,16 +1388,13 @@ function itemHTML(tur,item){
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <div class="item-amount">${fmtTL(amountTL)}</div>
-      <div class="item-paid ${item.paid?'paid':'unpaid'}" onclick="event.stopPropagation();togglePaid('${tur}','${item.id}')">${item.paid?'✓':''}</div>
+      <div class="item-paid ${item.paid?'paid':'unpaid'}" onclick="event.stopPropagation();togglePaid('${tur}',${idx})">${item.paid?'✓':''}</div>
     </div>
   </div>`;
 }
 
-function togglePaid(tur,id){
-  const d = getMonthData(curYear,curMonth);
-  const item = d[tur].find(i=>i.id===id);
-  if(item) item.paid = !item.paid;
-  saveAylik();
+function togglePaid(tur,idx){
+  togglePaidState(tur, idx);
   renderAylik();
 }
 
@@ -1213,9 +1446,7 @@ function renderKarsilastir(){
       <th style="text-align:right;padding:8px 4px;border-bottom:1px solid var(--border);">Net</th>
     </tr>`;
   months.forEach(({y,m})=>{
-    const key = getMonthKey(y,m);
-    const d = aylikData[key];
-    if(!d){html+=`<tr><td colspan="4" style="padding:8px 4px;color:var(--text2);">${MONTHS_TR[m]} ${y} — veri yok</td></tr>`;return;}
+    const d = getEffectiveMonthData(y,m);
     const gel = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
     const gid = [...(d.sabit||[]),...(d.degisken||[])].reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
     const net = gel-gid;
@@ -1308,12 +1539,11 @@ function openAylikModalFor(tur){
   openModal('aylik-modal');
 }
 
-function openAylikEdit(tur,id){
-  const d = getMonthData(curYear,curMonth);
-  const idx = d[tur].findIndex(i=>i.id===id);
-  if(idx<0) return;
+function openAylikEdit(tur,idx){
+  const d = getEffectiveMonthData(curYear,curMonth);
+  if(idx<0 || idx>=d[tur].length) return;
   const item = d[tur][idx];
-  aylikEditCtx = {tur,idx,id, grupId: item.grupId||null};
+  aylikEditCtx = {tur, idx, id: item.id, grupId: item.grupId||null};
   document.getElementById('aylik-modal-title').textContent = 'Kalemi Düzenle';
   document.getElementById('modal-tur').value = tur;
   document.getElementById('modal-ad').value = item.name;
@@ -1350,7 +1580,6 @@ function openAylikEdit(tur,id){
     document.getElementById('modal-gun').value = item.odemeTarih||'';
     document.getElementById('modal-sure').value = item.sure||'';
     document.getElementById('modal-tek-tarih').value = today;
-    document.getElementById('modal-manuel-gun').value = '';
   }
 
   document.getElementById('modal-del-btn').style.display = 'block';
@@ -1391,23 +1620,27 @@ function saveAylikItem(){
   if(mod==='teksefer'){
     const tarih = document.getElementById('modal-tek-tarih').value;
     if(!tarih){showToast('Lütfen tarih girin');return;}
-    newItem.tarih = tarih;
-    newItem.recurring = false;
-    // Tek seferlik: only add to the month matching the date
+    // Tek seferlik: store as lightweight template in recurringItems
     const [y,m] = tarih.split('-').map(Number);
-    const key = getMonthKey(y,m);
-    if(!aylikData[key]) aylikData[key] = {gelir:[],sabit:[],degisken:[]};
-    ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
-    if(aylikEditCtx){
-      // Remove from current month if stored there
-      const d = getMonthData(curYear,curMonth);
-      const oldItem = d[aylikEditCtx.tur][aylikEditCtx.idx];
-      // Remove old
-      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
-      newItem.id = oldItem.id;
+    const grupId = (aylikEditCtx && aylikEditCtx.grupId) || ('g'+uid());
+    // If editing: remove old entry (it might be stored or dynamic)
+    if(aylikEditCtx && aylikEditCtx.grupId){
+      recurringItems = recurringItems.filter(r=>r.grupId!==aylikEditCtx.grupId);
+      // Also remove old paid state if date changed
     }
-    aylikData[key][tur].push(newItem);
-    // Update curYear/curMonth to go to that month
+    const existingCatTs = (aylikEditCtx && aylikEditCtx.grupId)
+      ? (recurringItems.find(r=>r.grupId===aylikEditCtx.grupId)||{}).cat
+      : undefined;
+    const template = {
+      grupId,
+      name, amount, currency, tur,
+      cat: existingCatTs,
+      mod: 'teksefer',
+      tarih
+    };
+    const existingIdx = recurringItems.findIndex(r=>r.grupId===grupId);
+    if(existingIdx>=0) recurringItems[existingIdx]=template;
+    else recurringItems.push(template);
     curYear=y; curMonth=m;
   } else if(mod==='manuel'){
     // Çoklu ay modu: her satır ayrı aya kaydedilir
@@ -1415,10 +1648,14 @@ function saveAylikItem(){
     if(!rows.length){showToast('En az bir satır girin');return;}
     const currency = document.getElementById('modal-coklu-para').value;
 
-    // Eğer düzenleme modundaysa önce mevcut kaydı sil
+    // Eğer düzenleme modundaysa önce mevcut kaydı sil (stored item)
     if(aylikEditCtx){
-      const d = getMonthData(curYear,curMonth);
-      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+      const key = getMonthKey(curYear,curMonth);
+      const eff = getEffectiveMonthData(curYear,curMonth);
+      const oldItem = eff[aylikEditCtx.tur][aylikEditCtx.idx];
+      if(oldItem && !oldItem._dynamic && aylikData[key] && aylikData[key][aylikEditCtx.tur]){
+        aylikData[key][aylikEditCtx.tur] = aylikData[key][aylikEditCtx.tur].filter(i=>i.id!==oldItem.id);
+      }
     }
 
     // Her satırı ilgili aya ekle
@@ -1446,7 +1683,7 @@ function saveAylikItem(){
     showToast(`${rows.length} aya kaydedildi`);
     return;
   } else {
-    // tekrar — tüm ayları direkt yaz (zincire bağımlı değil)
+    // tekrar — sadece bir template kaydı (hafif, tüm aylar dinamik hesaplanır)
     const basTarih = document.getElementById('modal-bas-tarih').value;
     const sure = parseInt(document.getElementById('modal-sure').value)||null;
     const gun = parseInt(document.getElementById('modal-gun').value)||null;
@@ -1455,43 +1692,30 @@ function saveAylikItem(){
     const [sy,sm] = basTarih.split('-').map(Number);
     const grupId = (aylikEditCtx && aylikEditCtx.grupId) || ('g'+uid());
 
-    // Eğer düzenleme ise: bu grupId'ye ait tüm eski kayıtları sil
-    if(aylikEditCtx){
-      Object.keys(aylikData).forEach(k=>{
-        ['gelir','sabit','degisken'].forEach(t=>{
-          if(aylikData[k] && aylikData[k][t]){
-            aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==grupId);
-          }
-        });
-      });
+    // Eğer düzenleme ise: eski template'i güncelle
+    const existingIdx = recurringItems.findIndex(r=>r.grupId===grupId);
+    // Preserve cat from existing template if editing
+    const existingCat = (aylikEditCtx && aylikEditCtx.grupId)
+      ? (recurringItems.find(r=>r.grupId===aylikEditCtx.grupId)||{}).cat
+      : undefined;
+    const template = {
+      grupId,
+      name,
+      cat: existingCat,
+      amount: newItem.amount,
+      currency: newItem.currency,
+      tur,
+      mod: 'tekrar',
+      basTarih,
+      sure,
+      odemeTarih: gun
+    };
+    if(existingIdx>=0){
+      recurringItems[existingIdx] = template;
+    } else {
+      recurringItems.push(template);
     }
-
-    // sure kadar (ya da süresiz = 120 ay) her aya yaz
-    const toplamAy = sure || 120;
-    for(let i=0; i<toplamAy; i++){
-      let ay = (sm - 1 + i) % 12 + 1;
-      let yil = sy + Math.floor((sm - 1 + i) / 12);
-      const key = getMonthKey(yil, ay);
-      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[]};
-      ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
-      // Aynı grupId ile zaten kayıt varsa ekleme (tekrar çağrılma ihtimaline karşı)
-      if(!aylikData[key][tur].find(x=>x.grupId===grupId)){
-        aylikData[key][tur].push({
-          id: uid(),
-          grupId,
-          name, amount: newItem.amount, currency: newItem.currency,
-          mod: 'tekrar',
-          recurring: true,
-          basTarih,
-          sure,
-          odemeTarih: gun,
-          taksitNo: i+1,    // kaçıncı ay (gösterim için)
-          taksit: toplamAy,
-          kalanTaksit: toplamAy - i,
-          paid: false
-        });
-      }
-    }
+    // Aylik paid durumları ve diğer stored verileri dokunma
     curYear=sy; curMonth=sm;
   }
 
@@ -1502,26 +1726,38 @@ function saveAylikItem(){
 
 function deleteAylikItem(){
   if(!aylikEditCtx) return;
-  const d = getMonthData(curYear,curMonth);
-  const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
+  const eff = getEffectiveMonthData(curYear,curMonth);
+  const item = eff[aylikEditCtx.tur][aylikEditCtx.idx];
+  if(!item) return;
 
-  if(item && item.mod==='tekrar' && item.grupId){
+  if(item.grupId && (item.mod==='tekrar' || item.mod==='teksefer')){
     // Tekrarlayan: tüm ayları mı yoksa sadece bu ayı mı sil?
-    const tumAylari = confirm(`"${item.name}" tekrarlayan bir kalem.\n\nTÜM AYLARI SİL → Tamam\nSADECE BU AYI SİL → İptal`);
+    const tumAylari = confirm(`"${item.name}" ${item.mod==='tekrar'?'tekrarlayan':'tek seferlik'} bir kalem.\n\nTÜM KAYDI SİL → Tamam\nSADECE BU AYDAN ÇIKAR → İptal`);
     if(tumAylari){
       const gid = item.grupId;
+      // Remove from recurringItems
+      recurringItems = recurringItems.filter(r=>r.grupId!==gid);
+      // Remove any paid state from all months
       Object.keys(aylikData).forEach(k=>{
+        if(aylikData[k].paidMap) delete aylikData[k].paidMap[gid];
+        // Also clean up any old-style stored entries (migration remnants)
         ['gelir','sabit','degisken'].forEach(t=>{
-          if(aylikData[k] && aylikData[k][t]){
-            aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==gid);
-          }
+          if(aylikData[k][t]) aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==gid);
         });
       });
     } else {
-      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+      // "Sadece bu ay": mark as explicitly excluded for this month
+      const key = getMonthKey(curYear,curMonth);
+      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[],paidMap:{}};
+      if(!aylikData[key].excludedMap) aylikData[key].excludedMap={};
+      aylikData[key].excludedMap[item.grupId] = true;
     }
   } else {
-    d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+    // Regular stored item: remove from stored list
+    const key = getMonthKey(curYear,curMonth);
+    if(aylikData[key] && aylikData[key][aylikEditCtx.tur]){
+      aylikData[key][aylikEditCtx.tur] = aylikData[key][aylikEditCtx.tur].filter(i=>i.id!==item.id);
+    }
   }
 
   saveAylik();
