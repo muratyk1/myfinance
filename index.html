@@ -221,6 +221,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div class="home-logo">💰</div>
     <div class="home-title">My Finance</div>
     <div class="home-subtitle">Kişisel Finans Yönetimi</div>
+    <div style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;">
+      <span id="sync-indicator" style="font-size:12px;color:var(--text2);">☁️ Yükleniyor...</span>
+      <button onclick="manualSync()" style="background:rgba(108,99,255,0.15);border:1px solid rgba(108,99,255,0.3);border-radius:20px;color:var(--accent2);font-size:12px;padding:4px 12px;cursor:pointer;">↻ Senkronize Et</button>
+    </div>
   </div>
   <div class="home-grid">
     <div class="home-card accent1" onclick="goTo('aylik')">
@@ -246,6 +250,45 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div class="home-card accent6" onclick="goTo('malvarlik')">
       <div class="home-card-icon">🏠</div>
       <div class="home-card-name">Mal Varlığı</div>
+    </div>
+  </div>
+
+  <!-- Sync Settings Panel -->
+  <div style="padding:0 16px 32px;">
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSyncPanel()">
+        <div class="section-header-left">
+          <span class="section-icon">⚙️</span>
+          <span class="section-title">Bulut Senkronizasyon</span>
+        </div>
+        <span id="sync-panel-chevron" class="chevron">▼</span>
+      </div>
+      <div id="sync-panel-body" class="section-body" style="display:none;">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;">
+          Tüm cihazlardan erişim için Google Apps Script URL'sini girin.
+          URL bir kez girilince bu cihazda hatırlanır.
+        </p>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <input id="gas-url-input" type="url" placeholder="https://script.google.com/macros/s/.../exec"
+            style="flex:1;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;"
+            onkeydown="if(event.key==='Enter')saveGasUrl()">
+          <button onclick="saveGasUrl()"
+            style="background:var(--accent);border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;padding:10px 16px;cursor:pointer;white-space:nowrap;">
+            Kaydet
+          </button>
+        </div>
+        <div id="gas-url-status" style="font-size:11px;color:var(--text2);margin-top:8px;"></div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="manualSync()"
+            style="background:rgba(108,99,255,0.15);border:1px solid rgba(108,99,255,0.3);border-radius:8px;color:var(--accent2);font-size:12px;padding:6px 14px;cursor:pointer;">
+            ↻ Şimdi Senkronize Et
+          </button>
+          <button onclick="clearGasUrl()"
+            style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:var(--red);font-size:12px;padding:6px 14px;cursor:pointer;">
+            🗑 URL'yi Sil
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -654,6 +697,91 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 'use strict';
 
 /* ===========================
+   GOOGLE APPS SCRIPT SYNC
+   Web App URL buraya gelecek
+=========================== */
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyu2AdE1dA4jwO8HTKBbJGGHvxl3pT5R4TKRKSC3q5PXj-Ypv_D2aFI6lE5jZEhYBUI/exec';
+let GAS_URL = localStorage.getItem('myfinance_gas_url') || DEFAULT_GAS_URL;
+
+let syncStatus = 'idle';
+
+function showSyncStatus(status, msg){
+  syncStatus = status;
+  const el = document.getElementById('sync-indicator');
+  if(!el) return;
+  const icons = {idle:'☁️', syncing:'⏳', ok:'✅', error:'❌'};
+  el.textContent = icons[status] + (msg?' '+msg:'');
+  el.style.color = status==='error'?'var(--red)':status==='ok'?'var(--green)':'var(--text2)';
+}
+
+async function syncToSheets(){
+  if(!GAS_URL){
+    // No GAS URL yet — just save locally
+    localStorage.setItem(LS, JSON.stringify(state));
+    localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+    showSyncStatus('idle','Yerel kayıt');
+    return;
+  }
+  showSyncStatus('syncing');
+  try{
+    const payload = {
+      action: 'save',
+      state: JSON.stringify(state),
+      aylik: JSON.stringify(aylikData)
+    };
+    const r = await fetch(GAS_URL, {
+      method:'POST',
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if(d.ok){
+      showSyncStatus('ok', new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      throw new Error(d.error||'Bilinmeyen hata');
+    }
+    localStorage.setItem(LS, JSON.stringify(state));
+    localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+  }catch(e){
+    console.error('Sync hata:',e);
+    showSyncStatus('error','Yerel kaydedildi');
+    localStorage.setItem(LS, JSON.stringify(state));
+    localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+  }
+}
+
+async function syncFromSheets(){
+  if(!GAS_URL){
+    loadLocalState();
+    showSyncStatus('idle', 'Yerel veri');
+    return;
+  }
+  showSyncStatus('syncing');
+  try{
+    const r = await fetch(GAS_URL+'?action=load');
+    const d = await r.json();
+    if(d.ok){
+      if(d.state) Object.assign(state, JSON.parse(d.state));
+      if(d.aylik) aylikData = JSON.parse(d.aylik);
+      showSyncStatus('ok', new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}));
+      localStorage.setItem(LS, JSON.stringify(state));
+      localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
+    } else {
+      throw new Error(d.error||'Yükleme hatası');
+    }
+  }catch(e){
+    console.error('Load hata:',e);
+    showSyncStatus('error','Yerel veri kullanıldı');
+    loadLocalState();
+  }
+}
+
+function setGasUrl(url){
+  GAS_URL = url.trim();
+  localStorage.setItem('myfinance_gas_url', GAS_URL);
+  syncToSheets();
+}
+
+/* ===========================
    DATA STORE
 =========================== */
 const LS = 'myfinance_v1';
@@ -765,24 +893,28 @@ function setOn(id,v){
 /* ===========================
    LOAD / SAVE
 =========================== */
-function loadState(){
+function loadLocalState(){
   try{
     const raw = localStorage.getItem(LS);
     if(raw) Object.assign(state, JSON.parse(raw));
   }catch(e){}
-  // Load legacy aylik data
   try{
     const raw2 = localStorage.getItem(LS_AYLIK);
     if(raw2) aylikData = JSON.parse(raw2);
   }catch(e){}
 }
 
+function loadState(){
+  loadLocalState();
+}
+
 function saveState(){
-  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+  // Save to Sheets (async) + localStorage fallback
+  syncToSheets();
 }
 
 function saveAylik(){
-  try{ localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData)); }catch(e){}
+  syncToSheets();
 }
 
 /* ===========================
@@ -1681,6 +1813,52 @@ function closeModal(id){
   document.body.style.overflow='';
 }
 
+async function manualSync(){
+  await syncFromSheets();
+  renderAylik();
+  showToast('Veriler güncellendi');
+}
+
+function toggleSyncPanel(){
+  const body = document.getElementById('sync-panel-body');
+  const chevron = document.getElementById('sync-panel-chevron');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if(!isOpen){
+    // Populate input with current URL
+    const inp = document.getElementById('gas-url-input');
+    inp.value = GAS_URL || '';
+    updateGasUrlStatus();
+  }
+}
+
+function updateGasUrlStatus(){
+  const el = document.getElementById('gas-url-status');
+  if(!el) return;
+  if(GAS_URL) el.textContent = '✅ Aktif: ' + GAS_URL.substring(0,60) + (GAS_URL.length>60?'…':'');
+  else el.textContent = '⚠️ URL girilmemiş — veriler yalnızca bu cihazda saklanıyor.';
+}
+
+function saveGasUrl(){
+  const inp = document.getElementById('gas-url-input');
+  const url = (inp.value||'').trim();
+  if(url && !url.startsWith('https://script.google.com/macros/')){
+    showToast('Geçersiz URL. script.google.com adresi olmalı.');
+    return;
+  }
+  setGasUrl(url);
+  updateGasUrlStatus();
+  showToast(url ? 'URL kaydedildi, senkronize ediliyor…' : 'URL temizlendi, yerel moda geçildi.');
+}
+
+function clearGasUrl(){
+  document.getElementById('gas-url-input').value = '';
+  setGasUrl('');
+  updateGasUrlStatus();
+  showToast('Senkronizasyon devre dışı bırakıldı.');
+}
+
 // Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click',e=>{
@@ -1691,8 +1869,23 @@ document.querySelectorAll('.modal-overlay').forEach(overlay=>{
 /* ===========================
    INIT
 =========================== */
-loadState();
+// First load from localStorage (instant), then sync from Sheets
+loadLocalState();
 renderAylik();
+// Then load fresh data from Sheets
+syncFromSheets().then(()=>{
+  renderAylik();
+  // Re-render current page if not home
+  const active = document.querySelector('.page.active');
+  if(active && active.id !== 'page-home' && active.id !== 'page-aylik'){
+    const page = active.id.replace('page-','');
+    if(page==='portfolyo') renderPortfolyo();
+    else if(page==='borclar') renderBorclar();
+    else if(page==='kurlar') renderKurlar();
+    else if(page==='zekat') renderZekat();
+    else if(page==='malvarlik') renderMalvarlik();
+  }
+});
 </script>
 </body>
 </html>
