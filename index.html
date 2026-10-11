@@ -141,8 +141,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 /* ===== MAL VARLIĞI ===== */
 .asset-row{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer;}
 .asset-row:active{opacity:0.7;}
-.asset-name{font-size:14px;font-weight:700;margin-bottom:8px;}
-.asset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.asset-name{font-size:15px;font-weight:700;margin-bottom:10px;}
+.asset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;}
 .asset-kv{font-size:11px;color:var(--text2);}
 .asset-kv span{display:block;font-size:13px;font-weight:600;color:var(--text);margin-top:1px;}
 .asset-gain{font-size:12px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
@@ -151,6 +151,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .total-asset-bar{background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(167,139,250,0.15));border:1px solid rgba(108,99,255,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
 .total-asset-label{font-size:12px;color:var(--text2);margin-bottom:4px;}
 .total-asset-value{font-size:24px;font-weight:800;color:var(--accent2);}
+/* Multi-currency P&L table */
+.asset-pnl-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px;}
+.asset-pnl-table th{color:var(--text2);font-weight:600;text-align:right;padding:3px 6px;border-bottom:1px solid var(--border);}
+.asset-pnl-table th:first-child{text-align:left;}
+.asset-pnl-table td{padding:4px 6px;text-align:right;font-weight:600;}
+.asset-pnl-table td:first-child{text-align:left;color:var(--text2);}
+.asset-pnl-table td.pos{color:var(--green);}
+.asset-pnl-table td.neg{color:var(--red);}
+.asset-pnl-table td.neutral{color:var(--text);}
+.asset-tranche-list{margin-top:6px;}
+.asset-tranche{font-size:11px;color:var(--text2);padding:3px 0;display:flex;justify-content:space-between;}
+.asset-tranche span{color:var(--text);font-weight:600;}
+/* Alim modal rows */
+.alim-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;position:relative;}
+.alim-row-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.alim-row-title{font-size:12px;font-weight:700;color:var(--accent2);}
+.alim-del-btn{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:2px 4px;line-height:1;}
+.alim-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.alim-fields-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.alim-label{font-size:10px;color:var(--text2);margin-bottom:4px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;}
+.alim-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 10px;outline:none;-webkit-appearance:none;}
+.alim-input:focus{border-color:var(--accent);}
+.alim-select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 10px;outline:none;-webkit-appearance:none;}
+.add-alim-btn{width:100%;padding:10px;background:rgba(108,99,255,0.1);border:1.5px dashed rgba(108,99,255,0.4);border-radius:10px;color:var(--accent2);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px;}
 
 /* ===== ZEKAT ===== */
 .zekat-status{border-radius:var(--radius);padding:18px;margin-bottom:14px;text-align:center;}
@@ -710,30 +734,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <label class="form-label">Varlık Adı</label>
       <input type="text" class="form-input" id="mv-ad" placeholder="Örn: Çatalca Arsa">
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Alış Fiyatı (₺)</label>
-        <input type="number" class="form-input" id="mv-alis" placeholder="0" step="any">
+
+    <!-- Alımlar (çoklu kısmi alım) -->
+    <div style="margin-bottom:6px;">
+      <div style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Alımlar</div>
+      <div id="mv-alimlar-list"></div>
+      <button class="add-alim-btn" onclick="mvAddAlim()">+ Alım Ekle</button>
+    </div>
+
+    <!-- Mevcut değer -->
+    <div style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Mevcut Değer</div>
+    <div class="alim-fields" style="margin-bottom:14px;">
+      <div>
+        <label class="alim-label">Rayiç Bedel (₺ TL)</label>
+        <input type="number" class="alim-input" id="mv-rayic" placeholder="0" step="any">
       </div>
-      <div class="form-group">
-        <label class="form-label">Alış Tarihi</label>
-        <input type="text" class="form-input" id="mv-tarih" placeholder="Örn: 2020">
+      <div>
+        <label class="alim-label">Benim Payım (%)</label>
+        <input type="number" class="alim-input" id="mv-pay-mevcut" placeholder="100" min="0" max="100" step="any">
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Benim Payım / Alış (%)</label>
-      <input type="number" class="form-input" id="mv-pay-alis" placeholder="100" min="0" max="100" step="any">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Mevcut Rayiç (₺)</label>
-        <input type="number" class="form-input" id="mv-rayic" placeholder="0" step="any">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Benim Payım / Mevcut (%)</label>
-        <input type="number" class="form-input" id="mv-pay-mevcut" placeholder="100" min="0" max="100" step="any">
-      </div>
-    </div>
+
     <div class="btn-row">
       <button class="btn btn-danger" id="mv-del-btn" onclick="deleteMalvarlikItem()" style="display:none;">Sil</button>
       <button class="btn btn-primary" onclick="saveMalvarlikItem()">Kaydet</button>
@@ -840,6 +861,7 @@ async function syncFromSheets(){
       // After loading from Sheets, also run migration (in case remote has old-style data)
       seedDefaultsIfEmpty();
       migrateRecurringFromAylik();
+      migrateMalvarlik();
       showSyncStatus('ok', new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}));
       localStorage.setItem(LS, JSON.stringify(state));
       localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData));
@@ -877,13 +899,13 @@ let state = {
   portfolyo: [],
   borclar: [],
   malvarlik: [
-    {id:'mv1',ad:'Avrupa Konutları Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv2',ad:'Seat Ateca Araç',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv3',ad:'Çatalca Kestanelik Arsa',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv4',ad:'Çatalca İzzettin Tarla',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv5',ad:'Cevizli Dap Kule Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv6',ad:'Çatalca İnceğiz Arsa',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
-    {id:'mv7',ad:'Fuzul Topraktan Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv1',ad:'Avrupa Konutları Daire',alimlar:[{id:'a1',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv2',ad:'Seat Ateca Araç',alimlar:[{id:'a2',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv3',ad:'Çatalca Kestanelik Arsa',alimlar:[{id:'a3',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv4',ad:'Çatalca İzzettin Tarla',alimlar:[{id:'a4',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv5',ad:'Cevizli Dap Kule Daire',alimlar:[{id:'a5',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv6',ad:'Çatalca İnceğiz Arsa',alimlar:[{id:'a6',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
+    {id:'mv7',ad:'Fuzul Topraktan Daire',alimlar:[{id:'a7',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
   ],
   zekatOdemeler: [],
   zekatYil: new Date().getFullYear()
@@ -993,6 +1015,8 @@ function loadLocalState(){
   seedDefaultsIfEmpty();
   // Migrate: extract grupId-based recurring items from old aylikData into recurringItems
   migrateRecurringFromAylik();
+  // Migrate malvarlik to new multi-tranche structure
+  migrateMalvarlik();
 }
 
 function seedDefaultsIfEmpty(){
@@ -2212,78 +2236,227 @@ function saveZekatOdeme(){
 /* ===========================
    MAL VARLIĞI
 =========================== */
-function renderMalvarlik(){
-  const items = state.malvarlik;
-  const total = items.reduce((s,i)=>{
-    return s+(i.rayic||0)*(i.payMevcut||100)/100;
-  },0);
-  document.getElementById('malvarlik-toplam').textContent = fmtTL(total);
+/* ==========================================
+   MAL VARLIĞI — multi-currency, multi-tranche
+   ========================================== */
 
-  const cont = document.getElementById('malvarlik-list');
-  cont.innerHTML = items.map(item=>{
-    const alisdaPay = (item.alis||0)*(item.payAlis||100)/100;
-    const mevcutPay = (item.rayic||0)*(item.payMevcut||100)/100;
-    const kar = mevcutPay - alisdaPay;
-    const karPct = alisdaPay>0?((kar/alisdaPay)*100).toFixed(1):null;
-    return `<div class="asset-row" onclick="openMalvarlikEdit('${item.id}')">
-      <div class="asset-name">${item.ad}</div>
-      <div class="asset-grid">
-        <div class="asset-kv">Alış Fiyatı<span>${item.alis?fmtTL(item.alis):'—'}</span></div>
-        <div class="asset-kv">Tarih<span>${item.tarih||'—'}</span></div>
-        <div class="asset-kv">Payım/Alış<span>${item.payAlis||100}% · ${alisdaPay?fmtTL(alisdaPay):'—'}</span></div>
-        <div class="asset-kv">Payım/Mevcut<span>${item.payMevcut||100}% · ${mevcutPay?fmtTL(mevcutPay):'—'}</span></div>
-        <div class="asset-kv">Mevcut Rayiç<span>${item.rayic?fmtTL(item.rayic):'—'}</span></div>
-      </div>
-      ${alisdaPay&&mevcutPay?`<div class="asset-gain ${kar>=0?'pos':'neg'}">${kar>=0?'▲':'▼'} ${fmtTL(Math.abs(kar))} (${karPct}%)</div>`:''}
-    </div>`;
-  }).join('');
+// Migrate old-format items (alis/tarih/payAlis) → alimlar[]
+function migrateMalvarlik(){
+  state.malvarlik.forEach(item=>{
+    if(!item.alimlar){
+      item.alimlar = [{
+        id: uid(),
+        tarih: item.tarih||'',
+        pay: item.payAlis!=null?item.payAlis:100,
+        tutar: item.alis||0,
+        currency: 'TL'
+      }];
+      delete item.alis;
+      delete item.tarih;
+      delete item.payAlis;
+    }
+  });
+}
 
-  if(!items.length){
-    cont.innerHTML = `<div class="empty"><div class="empty-icon">🏠</div><div class="empty-text">Henüz varlık eklenmedi</div></div>`;
+// Convert any currency amount → TL
+function toTLMV(tutar, currency){
+  const a = parseFloat(tutar)||0;
+  const k = state.kurlar;
+  switch(currency){
+    case 'TL': return a;
+    case 'USD': return a * (k.USD||1);
+    case 'EUR': return a * (k.EUR||1);
+    case 'ALTIN_GR': return a * (k.ALTIN_GR||1);
+    default: return a;
   }
 }
 
+// Format in currency
+function fmtCur(tl, currency){
+  const k = state.kurlar;
+  let val, sym;
+  switch(currency){
+    case 'TL': val=tl; sym='₺'; break;
+    case 'USD': val=tl/(k.USD||1); sym='$'; break;
+    case 'EUR': val=tl/(k.EUR||1); sym='€'; break;
+    case 'ALTIN_GR': val=tl/(k.ALTIN_GR||1); sym='gr'; break;
+    default: val=tl; sym='₺';
+  }
+  return fmt(val)+' '+sym;
+}
+
+// Compute totals for an asset item
+function calcAssetTotals(item){
+  const alimlar = item.alimlar||[];
+  // Total alış maliyeti in TL
+  const alisTL = alimlar.reduce((s,a)=>{
+    const tutarTL = toTLMV(a.tutar, a.currency);
+    const pay = (a.pay!=null?a.pay:100)/100;
+    return s + tutarTL * pay;
+  },0);
+  // Total pay% from alimlar (weighted sum; we use it for display)
+  const toplamPay = alimlar.reduce((s,a)=>s+(parseFloat(a.pay)||0),0);
+  // Current value based on rayiç * payMevcut
+  const rayicTL = (item.rayic||0) * ((item.payMevcut!=null?item.payMevcut:100)/100);
+  const karTL = rayicTL - alisTL;
+  const karPct = alisTL>0?((karTL/alisTL)*100).toFixed(1):null;
+  return {alisTL, rayicTL, karTL, karPct, toplamPay};
+}
+
+function renderMalvarlik(){
+  migrateMalvarlik();
+  const items = state.malvarlik;
+  const total = items.reduce((s,i)=>(s+(i.rayic||0)*((i.payMevcut!=null?i.payMevcut:100)/100)),0);
+  document.getElementById('malvarlik-toplam').textContent = fmtTL(total);
+
+  const cont = document.getElementById('malvarlik-list');
+  if(!items.length){
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">🏠</div><div class="empty-text">Henüz varlık eklenmedi</div></div>`;
+    return;
+  }
+
+  const CURRENCIES = ['TL','USD','EUR','ALTIN_GR'];
+  const CUR_LABELS = {TL:'₺ TL', USD:'$ USD', EUR:'€ EUR', ALTIN_GR:'gr Altın'};
+
+  cont.innerHTML = items.map(item=>{
+    const {alisTL, rayicTL, karTL, karPct, toplamPay} = calcAssetTotals(item);
+    const alimlar = item.alimlar||[];
+
+    // Tranche list
+    const tranchesHtml = alimlar.length>1 ? `<div class="asset-tranche-list">${
+      alimlar.map(a=>{
+        const tutarTL = toTLMV(a.tutar,a.currency);
+        const payTL = tutarTL*(parseFloat(a.pay)||100)/100;
+        return `<div class="asset-tranche">`+
+          `<span style="color:var(--text2)">%${a.pay||100} · ${a.tarih||'—'} · ${a.currency}</span>`+
+          `<span>${fmt(a.tutar)} ${a.currency==='TL'?'₺':a.currency==='USD'?'$':a.currency==='EUR'?'€':'gr'} → ${fmtTL(payTL)}</span>`+
+          `</div>`;
+      }).join('')
+    }</div>` : (alimlar.length===1 && alimlar[0].tarih ? `<div class="asset-tranche"><span style="color:var(--text2)">Tarih: ${alimlar[0].tarih}</span></div>` : '');
+
+    // P&L table
+    const hasData = alisTL > 0 && rayicTL > 0;
+    const pnlHtml = hasData ? `<table class="asset-pnl-table">
+      <thead><tr><th>Para Birimi</th><th>Alış</th><th>Mevcut</th><th>Kar/Zarar</th></tr></thead>
+      <tbody>${CURRENCIES.map(cur=>{
+        const alis = fmtCur(alisTL, cur);
+        const mevcut = fmtCur(rayicTL, cur);
+        const kar = fmtCur(Math.abs(karTL), cur);
+        const sign = karTL>=0?'▲':'▼';
+        const cls = karTL>=0?'pos':'neg';
+        return `<tr><td>${CUR_LABELS[cur]}</td><td class="neutral">${alis}</td><td class="neutral">${mevcut}</td><td class="${cls}">${sign} ${kar}</td></tr>`;
+      }).join('')}
+      ${karPct!=null?`<tr><td colspan="3" style="color:var(--text2)">Toplam Değişim</td><td class="${karTL>=0?'pos':'neg'}">${karTL>=0?'▲':'▼'} %${Math.abs(karPct)}</td></tr>`:''}</tbody>
+    </table>` : (alisTL>0||rayicTL>0?`<div style="font-size:11px;color:var(--text2);margin-top:6px;">${alisTL>0?`Alış: ${fmtTL(alisTL)}`:''} ${rayicTL>0?`· Rayiç: ${fmtTL(rayicTL)}`:''}</div>`:'');
+
+    return `<div class="asset-row" onclick="openMalvarlikEdit('${item.id}')">
+      <div class="asset-name">${item.ad}</div>
+      <div class="asset-grid">
+        <div class="asset-kv">Toplam Alış Payım<span>${alisTL?fmtTL(alisTL):'—'}</span></div>
+        <div class="asset-kv">Mevcut Payım<span>${rayicTL?fmtTL(rayicTL):'—'}</span></div>
+        <div class="asset-kv">Alım Sayısı<span>${alimlar.length} alım${alimlar.length>1?' · %'+toplamPay.toFixed(0):' · %'+(alimlar[0]&&alimlar[0].pay!=null?alimlar[0].pay:100)}</span></div>
+        <div class="asset-kv">Mevcut Pay<span>%${item.payMevcut!=null?item.payMevcut:100}</span></div>
+      </div>
+      ${tranchesHtml}
+      ${pnlHtml}
+    </div>`;
+  }).join('');
+}
+
+/* ---- Modal helpers ---- */
+let mvAlimlarTemp = []; // temp alimlar being edited in modal
+
+function mvRenderAlimlarInModal(){
+  const list = document.getElementById('mv-alimlar-list');
+  if(!list) return;
+  list.innerHTML = mvAlimlarTemp.map((a,i)=>`
+    <div class="alim-row">
+      <div class="alim-row-header">
+        <span class="alim-row-title">Alım ${i+1}</span>
+        ${mvAlimlarTemp.length>1?`<button class="alim-del-btn" onclick="mvRemoveAlim(${i})">×</button>`:''}
+      </div>
+      <div class="alim-fields-3" style="margin-bottom:8px;">
+        <div>
+          <label class="alim-label">Tarih</label>
+          <input type="text" class="alim-input" placeholder="Örn: 2023" value="${a.tarih||''}"
+            oninput="mvAlimlarTemp[${i}].tarih=this.value">
+        </div>
+        <div>
+          <label class="alim-label">Pay %</label>
+          <input type="number" class="alim-input" placeholder="100" min="0" max="100" step="any" value="${a.pay!=null?a.pay:100}"
+            oninput="mvAlimlarTemp[${i}].pay=parseFloat(this.value)||0">
+        </div>
+        <div>
+          <label class="alim-label">Para Birimi</label>
+          <select class="alim-select" onchange="mvAlimlarTemp[${i}].currency=this.value">
+            ${['TL','USD','EUR','ALTIN_GR'].map(c=>`<option value="${c}" ${a.currency===c?'selected':''}>${c==='TL'?'₺ TL':c==='USD'?'$ USD':c==='EUR'?'€ EUR':'gr Altın'}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="alim-label">Alış Tutarı (${a.currency==='TL'?'₺':a.currency==='USD'?'$':a.currency==='EUR'?'€':'gr'})</label>
+        <input type="number" class="alim-input" placeholder="0" step="any" value="${a.tutar||''}"
+          oninput="mvAlimlarTemp[${i}].tutar=parseFloat(this.value)||0">
+      </div>
+    </div>
+  `).join('');
+}
+
+function mvAddAlim(){
+  mvAlimlarTemp.push({id:uid(),tarih:'',pay:0,tutar:0,currency:'TL'});
+  mvRenderAlimlarInModal();
+}
+
+function mvRemoveAlim(i){
+  if(mvAlimlarTemp.length<=1){showToast('En az bir alım kaydı gereklidir');return;}
+  mvAlimlarTemp.splice(i,1);
+  mvRenderAlimlarInModal();
+}
+
 function openMalvarlikModal(){
+  migrateMalvarlik();
   editingMalvarlik = null;
   document.getElementById('mv-modal-title').textContent = 'Varlık Ekle';
   document.getElementById('mv-ad').value = '';
-  document.getElementById('mv-alis').value = '';
-  document.getElementById('mv-tarih').value = '';
-  document.getElementById('mv-pay-alis').value = '100';
   document.getElementById('mv-rayic').value = '';
   document.getElementById('mv-pay-mevcut').value = '100';
   document.getElementById('mv-del-btn').style.display = 'none';
+  mvAlimlarTemp = [{id:uid(),tarih:'',pay:100,tutar:0,currency:'TL'}];
+  mvRenderAlimlarInModal();
   openModal('malvarlik-modal');
 }
 
 function openMalvarlikEdit(id){
+  migrateMalvarlik();
   const item = state.malvarlik.find(i=>i.id===id);
   if(!item) return;
   editingMalvarlik = id;
   document.getElementById('mv-modal-title').textContent = item.ad;
   document.getElementById('mv-ad').value = item.ad||'';
-  document.getElementById('mv-alis').value = item.alis||'';
-  document.getElementById('mv-tarih').value = item.tarih||'';
-  document.getElementById('mv-pay-alis').value = item.payAlis!=null?item.payAlis:100;
   document.getElementById('mv-rayic').value = item.rayic||'';
   document.getElementById('mv-pay-mevcut').value = item.payMevcut!=null?item.payMevcut:100;
   document.getElementById('mv-del-btn').style.display = 'block';
+  // Deep copy alimlar for editing
+  mvAlimlarTemp = (item.alimlar||[{id:uid(),tarih:'',pay:100,tutar:0,currency:'TL'}]).map(a=>({...a}));
+  if(mvAlimlarTemp.length===0) mvAlimlarTemp = [{id:uid(),tarih:'',pay:100,tutar:0,currency:'TL'}];
+  mvRenderAlimlarInModal();
   openModal('malvarlik-modal');
 }
 
 function saveMalvarlikItem(){
   const ad = document.getElementById('mv-ad').value.trim();
-  const alis = parseFloat(document.getElementById('mv-alis').value)||0;
-  const tarih = document.getElementById('mv-tarih').value.trim();
-  const payAlis = parseFloat(document.getElementById('mv-pay-alis').value)||100;
   const rayic = parseFloat(document.getElementById('mv-rayic').value)||0;
-  const payMevcut = parseFloat(document.getElementById('mv-pay-mevcut').value)||100;
+  const payMevcut = parseFloat(document.getElementById('mv-pay-mevcut').value);
+  const payMevFinal = isNaN(payMevcut)?100:payMevcut;
   if(!ad){showToast('Ad boş olamaz');return;}
+  if(mvAlimlarTemp.length===0){showToast('En az bir alım kaydı gereklidir');return;}
+  // Ensure all alimlar have ids
+  mvAlimlarTemp.forEach(a=>{if(!a.id)a.id=uid();});
   if(editingMalvarlik){
     const item = state.malvarlik.find(i=>i.id===editingMalvarlik);
-    if(item) Object.assign(item,{ad,alis,tarih,payAlis,rayic,payMevcut});
+    if(item) Object.assign(item,{ad, alimlar:mvAlimlarTemp, rayic, payMevcut:payMevFinal});
   } else {
-    state.malvarlik.push({id:uid(),ad,alis,tarih,payAlis,rayic,payMevcut});
+    state.malvarlik.push({id:uid(), ad, alimlar:mvAlimlarTemp, rayic, payMevcut:payMevFinal});
   }
   saveState();
   closeModal('malvarlik-modal');
