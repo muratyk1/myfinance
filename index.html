@@ -112,6 +112,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .form-select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 14px;outline:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:6px;}
+.mod-btn{flex:1;padding:9px 4px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center;}
+.mod-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
 .toggle-label{font-size:14px;color:var(--text);}
 .toggle{width:44px;height:26px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background 0.2s;}
 .toggle.on{background:var(--green);}
@@ -467,11 +469,58 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <label class="form-label">Ad</label>
       <input type="text" class="form-input" id="modal-ad" placeholder="Kalem adı">
     </div>
+
+    <!-- Ödeme Modu Seçici -->
+    <div class="form-group">
+      <label class="form-label">Ödeme Modu</label>
+      <div id="modal-mod-btns" style="display:flex;gap:6px;">
+        <button type="button" class="mod-btn active" id="mod-btn-tekrar" onclick="setMod('tekrar')">🔁 Tekrarlayan</button>
+        <button type="button" class="mod-btn" id="mod-btn-teksefer" onclick="setMod('teksefer')">📅 Tek Seferlik</button>
+        <button type="button" class="mod-btn" id="mod-btn-manuel" onclick="setMod('manuel')">✏️ Manuel</button>
+      </div>
+    </div>
+
+    <!-- TEKRARLAYAN alanları -->
+    <div id="modal-section-tekrar">
+      <div class="form-group">
+        <label class="form-label">Başlangıç Tarihi</label>
+        <input type="date" class="form-input" id="modal-bas-tarih">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Süre (Ay)</label>
+        <input type="number" class="form-input" id="modal-sure" placeholder="Kaç ay devam etsin? (boş = süresiz)" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Her Ayın Kaçında?</label>
+        <input type="number" class="form-input" id="modal-gun" placeholder="Örn: 5 (ayın 5'i)" min="1" max="31">
+      </div>
+    </div>
+
+    <!-- TEK SEFERLİK alanları -->
+    <div id="modal-section-teksefer" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Ödeme Tarihi</label>
+        <input type="date" class="form-input" id="modal-tek-tarih">
+      </div>
+    </div>
+
+    <!-- MANUEL alanları -->
+    <div id="modal-section-manuel" style="display:none;">
+      <div style="background:var(--card2);border-radius:8px;padding:10px;font-size:13px;color:var(--text2);margin-bottom:12px;">
+        Manuel modda bu kalem sadece <strong style="color:var(--text);">bu ay</strong> için eklenir. Tutar her ay ayrı ayrı girilir. Sonraki aylara otomatik taşınmaz.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ödeme Günü (bu ay)</label>
+        <input type="number" class="form-input" id="modal-manuel-gun" placeholder="Ayın kaçında? (isteğe bağlı)" min="1" max="31">
+      </div>
+    </div>
+
+    <!-- TUTAR (tüm modlarda) -->
     <div class="form-group">
       <label class="form-label">Tutar</label>
       <div style="display:flex;gap:8px;">
-        <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;">
-        <select class="form-select" id="modal-para" style="width:100px;">
+        <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;" oninput="updateTLPreview()">
+        <select class="form-select" id="modal-para" style="width:100px;" onchange="updateTLPreview()">
           <option value="TL">₺ TL</option>
           <option value="USD">$ USD</option>
           <option value="EUR">€ EUR</option>
@@ -482,24 +531,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div class="form-group" id="modal-tl-preview" style="display:none;">
       <div style="font-size:12px;color:var(--text2);">TL Karşılığı: <span id="modal-tl-val" style="color:var(--accent2);font-weight:700;"></span></div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Ödeme Tarihi (Gün)</label>
-      <input type="number" class="form-input" id="modal-tarih" placeholder="Örn: 5 (ayın 5'i)" min="1" max="31">
-    </div>
-    <div class="form-row" id="modal-taksit-row">
-      <div class="form-group">
-        <label class="form-label">Taksit Sayısı</label>
-        <input type="number" class="form-input" id="modal-taksit" placeholder="Toplam kaç taksit" min="1">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Kalan Taksit</label>
-        <input type="number" class="form-input" id="modal-kalan-taksit" placeholder="Kalan taksit" min="0">
-      </div>
-    </div>
-    <div class="toggle-row" id="modal-recur-row">
-      <span class="toggle-label">Sonraki aylara otomatik taşı</span>
-      <div class="toggle" id="modal-recur-toggle" onclick="toggleModal('modal-recur-toggle')"></div>
-    </div>
+
     <div class="btn-row">
       <button class="btn btn-danger" id="modal-del-btn" onclick="deleteAylikItem()" style="display:none;">Sil</button>
       <button class="btn btn-primary" id="modal-save-btn" onclick="saveAylikItem()">Kaydet</button>
@@ -830,21 +862,21 @@ const CAT_COLORS = {
 };
 
 /* Default Aylık items */
-const DEFAULT_GELIR = [{id:uid(),name:'Maaş',cat:'maas',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null}];
+const DEFAULT_GELIR = [{id:uid(),name:'Maaş',cat:'maas',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null}];
 const DEFAULT_SABIT = [
-  {id:uid(),name:'Fuzul',cat:'kira',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Ev Aidat',cat:'aidat',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Yusuf Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Büşra Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Cüneyt Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Memin Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Cüneyt Yurt',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Memin Servis',cat:'ulasim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Memin Yemek',cat:'gida',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Fuzul',cat:'kira',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Ev Aidat',cat:'aidat',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Yusuf Harçlık',cat:'egitim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Büşra Harçlık',cat:'egitim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Cüneyt Harçlık',cat:'egitim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Memin Harçlık',cat:'egitim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Cüneyt Yurt',cat:'egitim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Memin Servis',cat:'ulasim',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Memin Yemek',cat:'gida',amount:0,currency:'TL',mod:'tekrar',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
 ];
 const DEFAULT_DEGISKEN = [
-  {id:uid(),name:'YKB Kart',cat:'kart',amount:0,currency:'TL',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null},
-  {id:uid(),name:'Kuveyt Türk Kart',cat:'kart',amount:0,currency:'TL',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'YKB Kart',cat:'kart',amount:0,currency:'TL',mod:'manuel',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
+  {id:uid(),name:'Kuveyt Türk Kart',cat:'kart',amount:0,currency:'TL',mod:'manuel',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null,basTarih:null,sure:null},
 ];
 
 /* ===========================
@@ -951,14 +983,23 @@ function getMonthData(y,m){
     const prevKey = getMonthKey(py,pm);
     if(aylikData[prevKey]){
       const prev = aylikData[prevKey];
-      aylikData[key] = {
-        gelir: prev.gelir.filter(i=>i.recurring===true).map(i=>({...i,id:uid(),paid:false})),
-        sabit: prev.sabit.map(i=>{
-          const ni = {...i,id:uid(),paid:false};
-          // decrement installments
+      function carryItems(list){
+        return list.filter(i=>{
+          const mod = i.mod || (i.recurring===false?'manuel':'tekrar');
+          // teksefer and manuel never carry
+          if(mod==='teksefer' || mod==='manuel') return false;
+          if(i.recurring===false) return false;
+          return true;
+        }).map(i=>{
+          const ni = {...i, id:uid(), paid:false};
+          // decrement kalanTaksit if set
           if(ni.kalanTaksit!=null && ni.kalanTaksit>0) ni.kalanTaksit--;
           return ni;
-        }).filter(i=>i.kalanTaksit==null||i.kalanTaksit>0||i.taksit==null),
+        }).filter(i=>i.kalanTaksit==null||i.kalanTaksit>0||i.taksit==null);
+      }
+      aylikData[key] = {
+        gelir: carryItems(prev.gelir),
+        sabit: carryItems(prev.sabit),
         degisken: []
       };
     } else {
@@ -1069,9 +1110,19 @@ function itemHTML(tur,item){
   const color = CAT_COLORS[item.cat]||'#94a3b8';
   const amountTL = toTL(item.amount, item.currency||'TL');
   const isFC = item.currency && item.currency!=='TL';
+  const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
   let meta = '';
-  if(item.odemeTarih) meta += `Her ayın ${item.odemeTarih}'i`;
-  if(item.taksit) meta += `${meta?' · ':''}${item.kalanTaksit||0}/${item.taksit} taksit kaldı`;
+  if(mod==='teksefer' && item.tarih){
+    const [ty,tm,td] = item.tarih.split('-').map(Number);
+    meta = `📅 ${td} ${MONTHS_TR[tm]} ${ty}`;
+  } else if(mod==='manuel'){
+    if(item.odemeTarih) meta = `✏️ ${item.odemeTarih}'i (manuel)`;
+    else meta = '✏️ Manuel';
+  } else {
+    // tekrar
+    if(item.odemeTarih) meta += `🔁 Her ayın ${item.odemeTarih}'i`;
+    if(item.kalanTaksit!=null && item.taksit!=null) meta += `${meta?' · ':''}${item.kalanTaksit}/${item.taksit} ay kaldı`;
+  }
   if(item.currency && item.currency!=='TL') meta += `${meta?' · ':''}${fmt(item.amount)} ${item.currency}`;
 
   return `<div class="item-row" onclick="openAylikEdit('${tur}','${item.id}')">
@@ -1163,6 +1214,16 @@ function renderKarsilastir(){
 /* ===========================
    AYLІК MODAL
 =========================== */
+let modalMod = 'tekrar'; // 'tekrar' | 'teksefer' | 'manuel'
+
+function setMod(mod){
+  modalMod = mod;
+  ['tekrar','teksefer','manuel'].forEach(m=>{
+    document.getElementById('mod-btn-'+m).classList.toggle('active', m===mod);
+    document.getElementById('modal-section-'+m).style.display = m===mod?'block':'none';
+  });
+}
+
 function openAylikModal(){
   openAylikModalFor(aylikTab==='gelir'?'gelir':aylikTab==='sabit'?'sabit':'degisken');
 }
@@ -1174,13 +1235,18 @@ function openAylikModalFor(tur){
   document.getElementById('modal-ad').value = '';
   document.getElementById('modal-tutar').value = '';
   document.getElementById('modal-para').value = 'TL';
-  document.getElementById('modal-tarih').value = '';
-  document.getElementById('modal-taksit').value = '';
-  document.getElementById('modal-kalan-taksit').value = '';
-  setOn('modal-recur-toggle', tur!=='degisken');
+  // Set default start date to today
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  document.getElementById('modal-bas-tarih').value = todayStr;
+  document.getElementById('modal-tek-tarih').value = todayStr;
+  document.getElementById('modal-gun').value = today.getDate();
+  document.getElementById('modal-manuel-gun').value = '';
+  document.getElementById('modal-sure').value = '';
   document.getElementById('modal-del-btn').style.display = 'none';
   document.getElementById('modal-save-btn').className = 'btn btn-primary btn-full';
-  onTurChange();
+  setMod(tur==='degisken'?'manuel':'tekrar');
+  updateTLPreview();
   openModal('aylik-modal');
 }
 
@@ -1195,22 +1261,39 @@ function openAylikEdit(tur,id){
   document.getElementById('modal-ad').value = item.name;
   document.getElementById('modal-tutar').value = item.amount||'';
   document.getElementById('modal-para').value = item.currency||'TL';
-  document.getElementById('modal-tarih').value = item.odemeTarih||'';
-  document.getElementById('modal-taksit').value = item.taksit||'';
-  document.getElementById('modal-kalan-taksit').value = item.kalanTaksit!=null?item.kalanTaksit:'';
-  setOn('modal-recur-toggle', item.recurring===true);
+
+  const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
+  const today = new Date().toISOString().split('T')[0];
+
+  if(mod==='teksefer'){
+    document.getElementById('modal-tek-tarih').value = item.tarih||today;
+    document.getElementById('modal-bas-tarih').value = today;
+    document.getElementById('modal-gun').value = '';
+    document.getElementById('modal-sure').value = '';
+    document.getElementById('modal-manuel-gun').value = '';
+  } else if(mod==='manuel'){
+    document.getElementById('modal-bas-tarih').value = today;
+    document.getElementById('modal-tek-tarih').value = today;
+    document.getElementById('modal-gun').value = '';
+    document.getElementById('modal-sure').value = '';
+    document.getElementById('modal-manuel-gun').value = item.odemeTarih||'';
+  } else {
+    // tekrar
+    document.getElementById('modal-bas-tarih').value = item.basTarih||today;
+    document.getElementById('modal-gun').value = item.odemeTarih||'';
+    document.getElementById('modal-sure').value = item.sure||'';
+    document.getElementById('modal-tek-tarih').value = today;
+    document.getElementById('modal-manuel-gun').value = '';
+  }
+
   document.getElementById('modal-del-btn').style.display = 'block';
   document.getElementById('modal-save-btn').className = 'btn btn-primary';
-  onTurChange();
+  setMod(mod);
+  updateTLPreview();
   openModal('aylik-modal');
 }
 
 function onTurChange(){
-  const tur = document.getElementById('modal-tur').value;
-  const recRow = document.getElementById('modal-recur-row');
-  const taksitRow = document.getElementById('modal-taksit-row');
-  recRow.style.display = tur==='degisken'?'none':'flex';
-  taksitRow.style.display = tur==='degisken'?'grid':'grid';
   updateTLPreview();
 }
 
@@ -1227,34 +1310,84 @@ function updateTLPreview(){
   }
 }
 
-document.getElementById('modal-tutar').addEventListener('input',updateTLPreview);
-document.getElementById('modal-para').addEventListener('change',updateTLPreview);
-
 function saveAylikItem(){
   const tur = document.getElementById('modal-tur').value;
   const name = document.getElementById('modal-ad').value.trim();
   const amount = parseFloat(document.getElementById('modal-tutar').value)||0;
   const currency = document.getElementById('modal-para').value;
-  const odemeTarih = parseInt(document.getElementById('modal-tarih').value)||null;
-  const taksit = parseInt(document.getElementById('modal-taksit').value)||null;
-  const kalanTaksit = document.getElementById('modal-kalan-taksit').value!==''?parseInt(document.getElementById('modal-kalan-taksit').value):taksit;
-  const recurring = isOn('modal-recur-toggle');
+  const mod = modalMod;
 
   if(!name){showToast('Ad boş olamaz');return;}
 
-  const d = getMonthData(curYear,curMonth);
-  if(aylikEditCtx){
-    const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
-    // If tur changed, move
-    if(aylikEditCtx.tur !== tur){
+  let newItem = {id:uid(), name, amount, currency, mod, paid:false};
+
+  if(mod==='teksefer'){
+    const tarih = document.getElementById('modal-tek-tarih').value;
+    if(!tarih){showToast('Lütfen tarih girin');return;}
+    newItem.tarih = tarih;
+    newItem.recurring = false;
+    // Tek seferlik: only add to the month matching the date
+    const [y,m] = tarih.split('-').map(Number);
+    const key = getMonthKey(y,m);
+    if(!aylikData[key]) aylikData[key] = {gelir:[],sabit:[],degisken:[]};
+    ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
+    if(aylikEditCtx){
+      // Remove from current month if stored there
+      const d = getMonthData(curYear,curMonth);
+      const oldItem = d[aylikEditCtx.tur][aylikEditCtx.idx];
+      // Remove old
       d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
-      d[tur].push({...item,name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring});
+      newItem.id = oldItem.id;
+    }
+    aylikData[key][tur].push(newItem);
+    // Update curYear/curMonth to go to that month
+    curYear=y; curMonth=m;
+  } else if(mod==='manuel'){
+    const gun = parseInt(document.getElementById('modal-manuel-gun').value)||null;
+    newItem.odemeTarih = gun;
+    newItem.recurring = false;
+    newItem.basTarih = null;
+    newItem.sure = null;
+    const d = getMonthData(curYear,curMonth);
+    if(aylikEditCtx){
+      const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
+      if(aylikEditCtx.tur !== tur){
+        d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+        d[tur].push({...newItem, id:item.id});
+      } else {
+        Object.assign(item, newItem, {id:item.id});
+      }
     } else {
-      Object.assign(item,{name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring});
+      d[tur].push(newItem);
     }
   } else {
-    d[tur].push({id:uid(),name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring,paid:false});
+    // tekrar
+    const basTarih = document.getElementById('modal-bas-tarih').value;
+    const sure = parseInt(document.getElementById('modal-sure').value)||null;
+    const gun = parseInt(document.getElementById('modal-gun').value)||null;
+    if(!basTarih){showToast('Lütfen başlangıç tarihi girin');return;}
+    newItem.basTarih = basTarih;
+    newItem.sure = sure;
+    newItem.odemeTarih = gun;
+    newItem.recurring = true;
+    newItem.taksit = sure;
+    newItem.kalanTaksit = sure; // will count down
+    // Store in the start month
+    const [sy,sm] = basTarih.split('-').map(Number);
+    const startKey = getMonthKey(sy,sm);
+    if(!aylikData[startKey]) aylikData[startKey]={gelir:[],sabit:[],degisken:[]};
+    ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[startKey][t])aylikData[startKey][t]=[];});
+    if(aylikEditCtx){
+      // Remove from current location
+      const d = getMonthData(curYear,curMonth);
+      const oldItem = d[aylikEditCtx.tur][aylikEditCtx.idx];
+      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+      newItem.id = oldItem.id;
+    }
+    aylikData[startKey][tur].push(newItem);
+    curYear=sy; curMonth=sm;
   }
+
   saveAylik();
   closeModal('aylik-modal');
   renderAylik();
