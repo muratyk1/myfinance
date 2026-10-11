@@ -436,26 +436,51 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 <div id="page-zekat" class="page">
   <div class="header">
     <button class="back-btn" onclick="goHome()">‹</button>
-    <div><div class="header-title">Zekat</div></div>
+    <div><div class="header-title">Zekat</div><div class="header-sub" id="zekat-header-sub"></div></div>
   </div>
   <div class="content">
-    <div class="tab-bar" style="margin:-16px -16px 16px;position:sticky;top:0;z-index:50;">
-      <button class="tab-btn active" onclick="switchZekatTab('hesap')">Hesap</button>
-      <button class="tab-btn" onclick="switchZekatTab('odemeler')">Ödemeler</button>
+    <div class="tab-bar" style="margin:-16px -16px 16px;position:sticky;top:0;z-index:50;overflow-x:auto;white-space:nowrap;display:flex;">
+      <button class="tab-btn active" onclick="switchZekatTab('hesap')" style="flex:1;">Hesap</button>
+      <button class="tab-btn" onclick="switchZekatTab('odemeler')" style="flex:1;">Ödemeler</button>
+      <button class="tab-btn" onclick="switchZekatTab('varliklar')" style="flex:1;">Diğer Varlıklar</button>
+      <button class="tab-btn" onclick="switchZekatTab('borclar')" style="flex:1;">Diğer Borçlar</button>
     </div>
+
+    <!-- HESAP TAB -->
     <div id="zekat-hesap-tab" class="tab-content active">
       <div id="zekat-status-box"></div>
+      <!-- Yıl Kapat Butonu -->
+      <div id="zekat-yil-kapat-area" style="margin-bottom:12px;display:none;">
+        <button class="btn btn-primary btn-full" onclick="zekatYiliKapat()">🌙 Bu Yılı Kapat &amp; Zekat Borcunu Hesapla</button>
+        <div style="font-size:11px;color:var(--text2);text-align:center;margin-top:6px;">1 Ramazan tarihi geldiğinde önceki Hicri yılı kapatır ve zekat borcu oluşturur</div>
+      </div>
       <div class="section-card">
         <div class="section-header" style="cursor:default;">
-          <div class="section-header-left"><span class="section-icon">🌙</span><span class="section-title">Zekat Hesabı</span></div>
+          <div class="section-header-left"><span class="section-icon">🌙</span><span class="section-title">Mevcut Yıl Zekat Hesabı</span></div>
         </div>
         <div class="section-body" id="zekat-calc-rows"></div>
       </div>
+      <!-- Geçmiş yıllar -->
+      <div id="zekat-gecmis-yillar"></div>
     </div>
+
+    <!-- ÖDEMELER TAB -->
     <div id="zekat-odemeler-tab" class="tab-content">
       <button class="btn btn-primary btn-full" style="margin-bottom:14px;" onclick="openZekatOdemeModal()">+ Ödeme Ekle</button>
       <div id="zekat-odeme-list"></div>
       <div id="zekat-ozet-rows" style="margin-top:16px;"></div>
+    </div>
+
+    <!-- DİĞER VARLIKLAR TAB -->
+    <div id="zekat-varliklar-tab" class="tab-content">
+      <button class="btn btn-primary btn-full" style="margin-bottom:14px;" onclick="openZekatManuelModal('varlik')">+ Varlık Ekle</button>
+      <div id="zekat-diger-varlik-list"></div>
+    </div>
+
+    <!-- DİĞER BORÇLAR TAB -->
+    <div id="zekat-borclar-tab" class="tab-content">
+      <button class="btn btn-primary btn-full" style="margin-bottom:14px;" onclick="openZekatManuelModal('borc')">+ Borç Ekle</button>
+      <div id="zekat-diger-borc-list"></div>
     </div>
   </div>
 </div>
@@ -709,16 +734,47 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">Bu kur kalıcı olarak kaydedilecek (historik kilitli)</div>
     </div>
     <div class="form-group">
-      <label class="form-label">Yıl</label>
-      <input type="number" class="form-input" id="zo-yil" placeholder="2026">
+      <label class="form-label">Hangi Yılın Zekatı</label>
+      <select class="form-select" id="zo-yil-id">
+        <option value="">— Yıl seç —</option>
+      </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Tarih</label>
+      <label class="form-label">Ödeme Tarihi</label>
       <input type="date" class="form-input" id="zo-tarih">
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="closeModal('zekat-odeme-modal')">İptal</button>
       <button class="btn btn-primary" onclick="saveZekatOdeme()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zekat Manuel Kalem Modal (Diğer Varlık / Diğer Borç) -->
+<div class="modal-overlay" id="zekat-manuel-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="zm-modal-title">Varlık Ekle</div>
+      <button class="modal-close" onclick="closeModal('zekat-manuel-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ad / Açıklama</label>
+      <input type="text" class="form-input" id="zm-ad" placeholder="Örn: Kasa Nakit">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar (₺)</label>
+      <input type="number" class="form-input" id="zm-tutar" placeholder="0" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Not (isteğe bağlı)</label>
+      <input type="text" class="form-input" id="zm-not" placeholder="">
+    </div>
+    <input type="hidden" id="zm-tip">
+    <input type="hidden" id="zm-edit-id">
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('zekat-manuel-modal')">İptal</button>
+      <button id="zm-del-btn" class="btn btn-secondary" style="display:none;color:var(--red);" onclick="deleteZekatManuel()">Sil</button>
+      <button class="btn btn-primary" onclick="saveZekatManuel()">Kaydet</button>
     </div>
   </div>
 </div>
@@ -908,7 +964,13 @@ let state = {
     {id:'mv7',ad:'Fuzul Topraktan Daire',alimlar:[{id:'a7',tarih:'',pay:100,tutar:0,currency:'TL'}],rayic:0,payMevcut:100},
   ],
   zekatOdemeler: [],
-  zekatYil: new Date().getFullYear()
+  zekatYil: new Date().getFullYear(),
+  // Zekat yıllık kayıtları — her 1 Ramazan'da bir kayıt oluşturulur
+  // {id, hicriYil, baslangicTarihi, kapatmaTarihi, nisab, netVarlik, zekatBorcu, odenmis, borcId?}
+  zekatYillar: [],
+  // Manuel zekat kalemleri
+  zekatDigerVarliklar: [],  // [{id, ad, tutar, aciklama}]
+  zekatDigerBorclar: []     // [{id, ad, tutar, aciklama}]
 };
 
 // Aylık data – uses separate LS key (butce_v4)
@@ -2087,126 +2149,323 @@ function saveKur(){
 /* ===========================
    ZEKAT
 =========================== */
+/* ============================================================
+   ZEKAT — Hicri yıl bazlı, çok yıllı, manuel kalemli
+   ============================================================ */
+
+// Mevcut anlık zekat hesaplama (portföy + diğer varlıklar − borçlar)
+// MAL VARLIĞI (gayrimenkul, araç, arsa vb.) zekata TABİ DEĞİL → dahil edilmez
 function zekatHesapla(){
   const gramAltin = state.kurlar.ALTIN_GR||0;
   const nisab = 80.18 * gramAltin;
-  const totalVarlik = state.portfolyo.reduce((s,i)=>s+pfToTL(i),0);
-  const malvarlikTotal = state.malvarlik.reduce((s,i)=>s+(i.rayic||0)*(i.payMevcut||100)/100,0);
-  const borcTotal = borcTotalTL();
-  const netVarlik = totalVarlik + malvarlikTotal - borcTotal;
+  // Portföy varlıkları (nakit, hisse, altın, döviz vb.) — zekata tabi
+  const portfoyVarlik = state.portfolyo.reduce((s,i)=>s+pfToTL(i),0);
+  // Mal varlığı (gayrimenkul, araç, arsa) — ZEKATA TABİ DEĞİL, hesaba dahil edilmez
+  // Manuel diğer varlıklar
+  const digerVarlik = (state.zekatDigerVarliklar||[]).reduce((s,v)=>s+(parseFloat(v.tutar)||0),0);
+  // Borçlar: kredi borçları + ödenmemiş kredi kartı ödemeleri
+  const ksBorclar = (state.borclar||[]).filter(b=>b.tip==='kredi'||b.tip==='diger');
+  const borcTotal = ksBorclar.reduce((s,b)=>{
+    const bakiye = parseFloat(b.bakiye||b.tutar)||0;
+    return s + bakiye;
+  },0);
+  // Ödenmemiş kredi kartı ödemeleri (tur==='sabit' ve odendi===false olan sabit giderler)
+  // Bunlar gider/borç sekmesinden gelir
+  const aylarArr = Object.values(typeof aylikData !== 'undefined' ? aylikData : {});
+  let odenmemisKK = 0;
+  aylarArr.forEach(ayObj=>{
+    (ayObj.items||[]).forEach(it=>{
+      if(it.tur==='sabit' && it.krediKarti && !it.odendi){
+        const tutarTL = it.currency && it.currency!=='TL'
+          ? (parseFloat(it.tutar)||0) * (state.kurlar[it.currency]||1)
+          : (parseFloat(it.tutar)||0);
+        odenmemisKK += tutarTL;
+      }
+    });
+  });
+  // Manuel diğer borçlar
+  const digerBorc = (state.zekatDigerBorclar||[]).reduce((s,b)=>s+(parseFloat(b.tutar)||0),0);
+  const toplamVarlik = portfoyVarlik + digerVarlik;
+  const toplamBorc = borcTotal + odenmemisKK + digerBorc;
+  const netVarlik = toplamVarlik - toplamBorc;
   const zekatBorclu = netVarlik > nisab ? netVarlik * 0.025 : 0;
-  return {nisab, totalVarlik, malvarlikTotal, borcTotal, netVarlik, zekatBorclu};
+  return {nisab, portfoyVarlik, digerVarlik, borcTotal, odenmemisKK, digerBorc, toplamVarlik, toplamBorc, netVarlik, zekatBorclu, gramAltin};
+}
+
+// Geçmiş yıllara ait toplam ödenen ve kalan zekat borcu
+function zekatYilOzet(yilKaydi){
+  const odemeler = (state.zekatOdemeler||[]).filter(o=>o.zekatYilId===yilKaydi.id);
+  const odenen = odemeler.reduce((s,o)=>{
+    return s+(o.paraBirimi==='TL'?o.tutar:o.tutar*(o.kurAtZaman||1));
+  },0);
+  const kalan = Math.max(0, (yilKaydi.zekatBorcu||0) - odenen);
+  return {odenen, kalan, odemeler};
 }
 
 function renderZekat(){
   renderZekatHesap();
   renderZekatOdemeler();
+  renderZekatDigerVarliklar();
+  renderZekatDigerBorclar();
 }
 
 function renderZekatHesap(){
-  const {nisab,totalVarlik,malvarlikTotal,borcTotal,netVarlik,zekatBorclu} = zekatHesapla();
-  const above = netVarlik > nisab;
+  const {nisab,portfoyVarlik,digerVarlik,borcTotal,odenmemisKK,digerBorc,toplamVarlik,toplamBorc,netVarlik,zekatBorclu,gramAltin} = zekatHesapla();
+  const above = netVarlik > nisab && nisab > 0;
+
+  // Header sub
+  const headerSub = document.getElementById('zekat-header-sub');
+  if(headerSub) headerSub.textContent = `Nisab: ${fmtTL(nisab)} (80,18 gr × ${fmtTL(gramAltin)}/gr)`;
 
   document.getElementById('zekat-status-box').innerHTML = `
     <div class="zekat-status ${above?'above':'below'}">
       <div class="zekat-status-title">${above?'🌙 Zekat Yükümlüsüsünüz':'✅ Nisab Altındasınız'}</div>
-      <div class="zekat-status-sub">${above?`Net varlığınız nisabın üzerinde. Bu yıl ${fmtTL(zekatBorclu)} zekat borcunuz var.`:`Net varlığınız (${fmtTL(netVarlik)}) nisab değerinin (${fmtTL(nisab)}) altında.`}</div>
+      <div class="zekat-status-sub">${above
+        ? `Net varlığınız nisabın üzerinde. Yılı kapattığınızda <b>${fmtTL(zekatBorclu)}</b> zekat borcu oluşacak.`
+        : `Net varlığınız (${fmtTL(netVarlik)}) nisab değerinin (${fmtTL(nisab)}) altında.`
+      }</div>
     </div>
   `;
 
   document.getElementById('zekat-calc-rows').innerHTML = `
     <div class="zekat-row">
-      <div class="zekat-key">Gram Altın Fiyatı</div>
-      <div class="zekat-val">${fmtTL(state.kurlar.ALTIN_GR)}</div>
-    </div>
-    <div class="zekat-row">
-      <div class="zekat-key">Nisab (80,18 gr × altın)</div>
-      <div class="zekat-val" style="color:var(--gold);">${fmtTL(nisab)}</div>
-    </div>
-    <div class="zekat-row">
       <div class="zekat-key">Portföy Varlıkları</div>
-      <div class="zekat-val">${fmtTL(totalVarlik)}</div>
+      <div class="zekat-val">${fmtTL(portfoyVarlik)}</div>
     </div>
+    ${digerVarlik>0?`<div class="zekat-row">
+      <div class="zekat-key">Diğer Varlıklar (Manuel)</div>
+      <div class="zekat-val">${fmtTL(digerVarlik)}</div>
+    </div>`:''}
     <div class="zekat-row">
-      <div class="zekat-key">Mal Varlığı (Payım)</div>
-      <div class="zekat-val">${fmtTL(malvarlikTotal)}</div>
+      <div class="zekat-key" style="font-weight:700;color:var(--text);">Zekata Tabi Toplam</div>
+      <div class="zekat-val" style="font-size:15px;">${fmtTL(toplamVarlik)}</div>
     </div>
-    <div class="zekat-row">
-      <div class="zekat-key">Toplam Borç</div>
+    <div class="zekat-row" style="border-top:1px dashed var(--border);margin-top:4px;padding-top:8px;">
+      <div class="zekat-key">Kredi Borçları</div>
       <div class="zekat-val" style="color:var(--red);">-${fmtTL(borcTotal)}</div>
     </div>
-    <div class="zekat-row">
+    ${odenmemisKK>0?`<div class="zekat-row">
+      <div class="zekat-key">Ödenmemiş Kredi Kartı</div>
+      <div class="zekat-val" style="color:var(--red);">-${fmtTL(odenmemisKK)}</div>
+    </div>`:''}
+    ${digerBorc>0?`<div class="zekat-row">
+      <div class="zekat-key">Diğer Borçlar (Manuel)</div>
+      <div class="zekat-val" style="color:var(--red);">-${fmtTL(digerBorc)}</div>
+    </div>`:''}
+    <div class="zekat-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px;">
       <div class="zekat-key" style="font-weight:700;color:var(--text);">Net Varlık</div>
       <div class="zekat-val" style="font-size:16px;">${fmtTL(netVarlik)}</div>
     </div>
-    ${above?`<div class="zekat-row">
-      <div class="zekat-key" style="font-weight:700;color:var(--gold);">Zekat Borcu (%2,5)</div>
+    <div class="zekat-row">
+      <div class="zekat-key" style="color:var(--gold);">Nisab</div>
+      <div class="zekat-val" style="color:var(--gold);">${fmtTL(nisab)}</div>
+    </div>
+    ${above?`<div class="zekat-row" style="background:rgba(245,158,11,0.05);border-radius:8px;padding:10px 0;margin-top:4px;">
+      <div class="zekat-key" style="font-weight:700;color:var(--gold);">Tahmini Zekat Borcu (%2,5)</div>
       <div class="zekat-val" style="color:var(--gold);font-size:16px;">${fmtTL(zekatBorclu)}</div>
     </div>`:''}
+    <div style="margin-top:8px;padding:8px;background:rgba(108,99,255,0.06);border-radius:8px;font-size:11px;color:var(--text2);">
+      ℹ️ Gayrimenkul, araç ve arsa gibi sabit varlıklar zekata tabi olmadığından hesaba dahil edilmemiştir.
+    </div>
   `;
+
+  // Yıl kapat butonu
+  const kapatArea = document.getElementById('zekat-yil-kapat-area');
+  if(kapatArea) kapatArea.style.display = above ? 'block' : 'none';
+
+  // Geçmiş yıllar
+  renderZekatGecmisYillar();
+}
+
+function renderZekatGecmisYillar(){
+  const cont = document.getElementById('zekat-gecmis-yillar');
+  if(!cont) return;
+  const yillar = (state.zekatYillar||[]).slice().sort((a,b)=>b.hicriYil-a.hicriYil);
+  if(yillar.length===0){ cont.innerHTML=''; return; }
+  cont.innerHTML = `<div style="margin-top:16px;font-size:12px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Geçmiş Yıllar</div>`+
+  yillar.map(y=>{
+    const {odenen, kalan} = zekatYilOzet(y);
+    const tamOdendi = kalan===0 && y.zekatBorcu>0;
+    return `<div class="section-card" style="margin-bottom:8px;">
+      <div class="section-header" style="cursor:default;">
+        <div class="section-header-left">
+          <span class="section-icon">🌙</span>
+          <div>
+            <div class="section-title">H.${y.hicriYil} · ${y.kapatmaTarihi||''}</div>
+            <div style="font-size:11px;color:var(--text2);">${y.baslangicTarihi||''} → ${y.kapatmaTarihi||''}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          ${tamOdendi
+            ? `<div style="color:var(--green);font-size:12px;font-weight:700;">✓ Ödendi</div>`
+            : `<div style="color:var(--red);font-size:12px;font-weight:700;">Kalan: ${fmtTL(kalan)}</div>`
+          }
+        </div>
+      </div>
+      <div class="section-body" style="padding-bottom:12px;">
+        <div class="zekat-row"><div class="zekat-key">Net Varlık (kapanış)</div><div class="zekat-val">${fmtTL(y.netVarlik||0)}</div></div>
+        <div class="zekat-row"><div class="zekat-key">Zekat Borcu (%2,5)</div><div class="zekat-val" style="color:var(--gold);">${fmtTL(y.zekatBorcu||0)}</div></div>
+        <div class="zekat-row"><div class="zekat-key">Ödenen</div><div class="zekat-val" style="color:var(--green);">${fmtTL(odenen)}</div></div>
+        ${!tamOdendi && kalan>0?`<div style="margin-top:8px;">
+          <button class="btn btn-primary btn-full" onclick="openZekatOdemeModal('${y.id}')">+ Bu Yıla Ödeme Ekle</button>
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 1 Ramazan'da yılı kapatır, zekat borcu oluşturur
+function zekatYiliKapat(){
+  const bugun = new Date().toISOString().slice(0,10);
+  const {nisab, netVarlik, zekatBorclu} = zekatHesapla();
+  if(nisab===0){ showToast('Önce gram altın kurunu girin'); return; }
+  // Mevcut yıllar listesi
+  const yillar = state.zekatYillar||[];
+  // Basit Hicri yıl hesabı (yaklaşık)
+  const hicriYil = Math.floor((new Date().getFullYear()-622)*1.030684)+1;
+  // Önceki yılın kapanış tarihi
+  const oncekiKapanis = yillar.length>0 ? yillar[yillar.length-1].kapatmaTarihi : null;
+  const yeniYil = {
+    id: uid(),
+    hicriYil,
+    baslangicTarihi: oncekiKapanis||'',
+    kapatmaTarihi: bugun,
+    nisab,
+    netVarlik,
+    zekatBorcu: zekatBorclu,
+    odenmis: false
+  };
+  if(!state.zekatYillar) state.zekatYillar=[];
+  state.zekatYillar.push(yeniYil);
+  // Zekat borcu varsa borçlar listesine de ekle
+  if(zekatBorclu>0){
+    if(!state.borclar) state.borclar=[];
+    const borcId = uid();
+    yeniYil.borcId = borcId;
+    state.borclar.push({
+      id: borcId,
+      ad: `Zekat H.${hicriYil}`,
+      tip: 'diger',
+      tutar: zekatBorclu,
+      bakiye: zekatBorclu,
+      taksit: 1,
+      odenmisTaksit: 0,
+      notlar: `${bugun} tarihinde hesaplanan zekat borcu`
+    });
+  }
+  saveState();
+  renderZekat();
+  showToast(`H.${hicriYil} yılı kapatıldı${zekatBorclu>0?` · ${fmtTL(zekatBorclu)} zekat borcu oluşturuldu`:' · Nisab altında'}`);
 }
 
 function renderZekatOdemeler(){
-  const {zekatBorclu} = zekatHesapla();
-  const odemeler = state.zekatOdemeler;
+  const odemeler = state.zekatOdemeler||[];
   const cont = document.getElementById('zekat-odeme-list');
+  const yillar = state.zekatYillar||[];
 
   if(odemeler.length===0){
     cont.innerHTML = `<div class="empty"><div class="empty-icon">🌙</div><div class="empty-text">Henüz ödeme eklenmedi</div></div>`;
   } else {
-    cont.innerHTML = odemeler.sort((a,b)=>new Date(b.tarih)-new Date(a.tarih)).map(o=>{
-      const tl = o.paraBirimi==='TL' ? o.tutar : o.tutar*(o.kurAtZaman||0);
+    cont.innerHTML = odemeler.slice().sort((a,b)=>(b.tarih||'').localeCompare(a.tarih||'')).map(o=>{
+      const tl = o.paraBirimi==='TL' ? o.tutar : o.tutar*(o.kurAtZaman||1);
+      const yilKaydi = yillar.find(y=>y.id===o.zekatYilId);
+      const yilLabel = yilKaydi ? `H.${yilKaydi.hicriYil}` : (o.yil||'');
       return `<div class="payment-item">
         <div class="payment-item-left">
           <div class="payment-item-name">${o.alici}</div>
-          <div class="payment-item-meta">${o.yil} · ${o.tarih||''} ${o.paraBirimi!=='TL'?`· ${fmt(o.tutar)} ${o.paraBirimi} @ ${fmt(o.kurAtZaman)} ₺`:''}</div>
+          <div class="payment-item-meta">${yilLabel} · ${o.tarih||''}${o.paraBirimi!=='TL'?` · ${fmt(o.tutar)} ${o.paraBirimi} @ ${fmt(o.kurAtZaman)} ₺`:''}</div>
         </div>
         <div class="payment-item-amount">${fmtTL(tl)}</div>
       </div>`;
     }).join('');
   }
 
-  const toplamOdenen = odemeler.reduce((s,o)=>{
-    return s+(o.paraBirimi==='TL' ? o.tutar : o.tutar*(o.kurAtZaman||0));
-  },0);
-  const kalan = Math.max(0, zekatBorclu - toplamOdenen);
+  // Özet: tüm yıllar toplamı
+  let toplamBorc=0, toplamOdenen=0;
+  yillar.forEach(y=>{
+    toplamBorc += y.zekatBorcu||0;
+    const {odenen} = zekatYilOzet(y);
+    toplamOdenen += odenen;
+  });
+  const kalanToplam = Math.max(0, toplamBorc - toplamOdenen);
 
-  document.getElementById('zekat-ozet-rows').innerHTML = `
+  document.getElementById('zekat-ozet-rows').innerHTML = toplamBorc>0?`
     <div class="section-card">
       <div class="section-body" style="padding:12px 16px;">
-        <div class="zekat-row">
-          <div class="zekat-key">Bu Yıl Zekat Borcu</div>
-          <div class="zekat-val" style="color:var(--gold);">${fmtTL(zekatBorclu)}</div>
-        </div>
-        <div class="zekat-row">
-          <div class="zekat-key">Ödenen Toplam</div>
-          <div class="zekat-val" style="color:var(--green);">${fmtTL(toplamOdenen)}</div>
-        </div>
-        <div class="zekat-row">
-          <div class="zekat-key" style="font-weight:700;">Kalan Zekat</div>
-          <div class="zekat-val" style="color:${kalan>0?'var(--red)':'var(--green)'};font-size:16px;">${fmtTL(kalan)}</div>
-        </div>
+        <div class="zekat-row"><div class="zekat-key">Toplam Zekat Borcu (tüm yıllar)</div><div class="zekat-val" style="color:var(--gold);">${fmtTL(toplamBorc)}</div></div>
+        <div class="zekat-row"><div class="zekat-key">Toplam Ödenen</div><div class="zekat-val" style="color:var(--green);">${fmtTL(toplamOdenen)}</div></div>
+        <div class="zekat-row"><div class="zekat-key" style="font-weight:700;">Kalan Zekat</div><div class="zekat-val" style="color:${kalanToplam>0?'var(--red)':'var(--green)'};font-size:16px;">${fmtTL(kalanToplam)}</div></div>
       </div>
     </div>
-  `;
+  `:'';
+}
+
+function renderZekatDigerVarliklar(){
+  const cont = document.getElementById('zekat-diger-varlik-list');
+  if(!cont) return;
+  const liste = state.zekatDigerVarliklar||[];
+  if(liste.length===0){
+    cont.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Henüz eklenmedi</div></div>`;
+    return;
+  }
+  const toplam = liste.reduce((s,v)=>s+(parseFloat(v.tutar)||0),0);
+  cont.innerHTML = liste.map(v=>`
+    <div class="payment-item" onclick="openZekatManuelEdit('varlik','${v.id}')">
+      <div class="payment-item-left">
+        <div class="payment-item-name">${v.ad}</div>
+        ${v.not?`<div class="payment-item-meta">${v.not}</div>`:''}
+      </div>
+      <div class="payment-item-amount">${fmtTL(parseFloat(v.tutar)||0)}</div>
+    </div>`).join('')+
+  `<div style="margin-top:8px;text-align:right;font-size:13px;font-weight:700;color:var(--accent2);">Toplam: ${fmtTL(toplam)}</div>`;
+}
+
+function renderZekatDigerBorclar(){
+  const cont = document.getElementById('zekat-diger-borc-list');
+  if(!cont) return;
+  const liste = state.zekatDigerBorclar||[];
+  if(liste.length===0){
+    cont.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Henüz eklenmedi</div></div>`;
+    return;
+  }
+  const toplam = liste.reduce((s,v)=>s+(parseFloat(v.tutar)||0),0);
+  cont.innerHTML = liste.map(v=>`
+    <div class="payment-item" onclick="openZekatManuelEdit('borc','${v.id}')">
+      <div class="payment-item-left">
+        <div class="payment-item-name">${v.ad}</div>
+        ${v.not?`<div class="payment-item-meta">${v.not}</div>`:''}
+      </div>
+      <div class="payment-item-amount" style="color:var(--red);">${fmtTL(parseFloat(v.tutar)||0)}</div>
+    </div>`).join('')+
+  `<div style="margin-top:8px;text-align:right;font-size:13px;font-weight:700;color:var(--red);">Toplam: -${fmtTL(toplam)}</div>`;
 }
 
 function switchZekatTab(tab){
   zekatTab = tab;
+  const tabMap = {hesap:'Hesap',odemeler:'Ödemeler',varliklar:'Diğer Varlıklar',borclar:'Diğer Borçlar'};
   document.querySelectorAll('#page-zekat .tab-btn').forEach(b=>{
-    b.classList.toggle('active',(b.textContent==='Hesap'&&tab==='hesap')||(b.textContent==='Ödemeler'&&tab==='odemeler'));
+    b.classList.toggle('active', b.textContent.trim()===tabMap[tab]);
   });
-  document.getElementById('zekat-hesap-tab').classList.toggle('active',tab==='hesap');
-  document.getElementById('zekat-odemeler-tab').classList.toggle('active',tab==='odemeler');
+  ['hesap','odemeler','varliklar','borclar'].forEach(t=>{
+    const el = document.getElementById(`zekat-${t}-tab`);
+    if(el) el.classList.toggle('active',t===tab);
+  });
 }
 
-function openZekatOdemeModal(){
+function openZekatOdemeModal(zekatYilId){
   document.getElementById('zo-alici').value = '';
   document.getElementById('zo-tutar').value = '';
   document.getElementById('zo-para').value = 'TL';
   document.getElementById('zo-kur').value = '';
-  document.getElementById('zo-yil').value = new Date().getFullYear();
   document.getElementById('zo-tarih').value = new Date().toISOString().slice(0,10);
+  // Yıl dropdown
+  const yilSel = document.getElementById('zo-yil-id');
+  yilSel.innerHTML = '<option value="">— Yıl seç —</option>' +
+    (state.zekatYillar||[]).slice().sort((a,b)=>b.hicriYil-a.hicriYil).map(y=>{
+      const {kalan} = zekatYilOzet(y);
+      return `<option value="${y.id}" ${y.id===zekatYilId?'selected':''}>${'H.'+y.hicriYil+' · '+y.kapatmaTarihi+(kalan>0?' ('+fmtTL(kalan)+' kalan)':'')}</option>`;
+    }).join('');
+  if(zekatYilId) yilSel.value = zekatYilId;
   onZekatParaChange();
   openModal('zekat-odeme-modal');
 }
@@ -2224,12 +2483,81 @@ function saveZekatOdeme(){
   const tutar = parseFloat(document.getElementById('zo-tutar').value)||0;
   const paraBirimi = document.getElementById('zo-para').value;
   const kurAtZaman = parseFloat(document.getElementById('zo-kur').value)||null;
-  const yil = parseInt(document.getElementById('zo-yil').value)||new Date().getFullYear();
+  const zekatYilId = document.getElementById('zo-yil-id').value;
   const tarih = document.getElementById('zo-tarih').value;
   if(!alici||!tutar){showToast('Alıcı ve tutar zorunlu');return;}
-  state.zekatOdemeler.push({id:uid(),alici,tutar,paraBirimi,kurAtZaman,yil,tarih});
+  if(!zekatYilId){showToast('Hangi yılın zekatı olduğunu seçin');return;}
+  const tlTutar = paraBirimi==='TL'?tutar:tutar*(kurAtZaman||1);
+  state.zekatOdemeler.push({id:uid(),alici,tutar,paraBirimi,kurAtZaman,zekatYilId,tarih});
+  // İlgili yılın borcunu düşür
+  const yilKaydi = (state.zekatYillar||[]).find(y=>y.id===zekatYilId);
+  if(yilKaydi && yilKaydi.borcId){
+    const borc = (state.borclar||[]).find(b=>b.id===yilKaydi.borcId);
+    if(borc){
+      borc.bakiye = Math.max(0,(parseFloat(borc.bakiye)||0)-tlTutar);
+      if(borc.bakiye===0) yilKaydi.odenmis=true;
+    }
+  }
   saveState();
   closeModal('zekat-odeme-modal');
+  renderZekat();
+}
+
+/* ---- Manuel Zekat Kalem Modal ---- */
+function openZekatManuelModal(tip){
+  document.getElementById('zm-modal-title').textContent = tip==='varlik'?'Varlık Ekle':'Borç Ekle';
+  document.getElementById('zm-tip').value = tip;
+  document.getElementById('zm-edit-id').value = '';
+  document.getElementById('zm-ad').value = '';
+  document.getElementById('zm-tutar').value = '';
+  document.getElementById('zm-not').value = '';
+  document.getElementById('zm-del-btn').style.display = 'none';
+  openModal('zekat-manuel-modal');
+}
+
+function openZekatManuelEdit(tip, id){
+  const liste = tip==='varlik'?(state.zekatDigerVarliklar||[]):(state.zekatDigerBorclar||[]);
+  const kayit = liste.find(v=>v.id===id);
+  if(!kayit) return;
+  document.getElementById('zm-modal-title').textContent = tip==='varlik'?'Varlık Düzenle':'Borç Düzenle';
+  document.getElementById('zm-tip').value = tip;
+  document.getElementById('zm-edit-id').value = id;
+  document.getElementById('zm-ad').value = kayit.ad||'';
+  document.getElementById('zm-tutar').value = kayit.tutar||'';
+  document.getElementById('zm-not').value = kayit.not||'';
+  document.getElementById('zm-del-btn').style.display = 'block';
+  openModal('zekat-manuel-modal');
+}
+
+function saveZekatManuel(){
+  const tip = document.getElementById('zm-tip').value;
+  const editId = document.getElementById('zm-edit-id').value;
+  const ad = document.getElementById('zm-ad').value.trim();
+  const tutar = parseFloat(document.getElementById('zm-tutar').value)||0;
+  const not = document.getElementById('zm-not').value.trim();
+  if(!ad||!tutar){showToast('Ad ve tutar zorunlu');return;}
+  const liste = tip==='varlik'?(state.zekatDigerVarliklar||(state.zekatDigerVarliklar=[])):(state.zekatDigerBorclar||(state.zekatDigerBorclar=[]));
+  if(editId){
+    const idx = liste.findIndex(v=>v.id===editId);
+    if(idx>=0) liste[idx]={...liste[idx],ad,tutar,not};
+  } else {
+    liste.push({id:uid(),ad,tutar,not});
+  }
+  if(tip==='varlik' && !state.zekatDigerVarliklar) state.zekatDigerVarliklar=liste;
+  if(tip==='borc' && !state.zekatDigerBorclar) state.zekatDigerBorclar=liste;
+  saveState();
+  closeModal('zekat-manuel-modal');
+  renderZekat();
+}
+
+function deleteZekatManuel(){
+  const tip = document.getElementById('zm-tip').value;
+  const editId = document.getElementById('zm-edit-id').value;
+  if(!editId) return;
+  if(tip==='varlik') state.zekatDigerVarliklar=(state.zekatDigerVarliklar||[]).filter(v=>v.id!==editId);
+  else state.zekatDigerBorclar=(state.zekatDigerBorclar||[]).filter(v=>v.id!==editId);
+  saveState();
+  closeModal('zekat-manuel-modal');
   renderZekat();
 }
 
