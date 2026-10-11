@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Finance">
+<title>My Finance</title>
+<style>
+/* ===== RESET & BASE ===== */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0f0f1a;
+  --bg2:#1a1a2e;
+  --bg3:#16213e;
+  --card:#1e1e35;
+  --card2:#252545;
+  --accent:#6c63ff;
+  --accent2:#a78bfa;
+  --gold:#f59e0b;
+  --green:#10b981;
+  --red:#ef4444;
+  --blue:#3b82f6;
+  --text:#e2e8f0;
+  --text2:#94a3b8;
+  --border:#2d2d50;
+  --radius:12px;
+  --shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;font-size:15px;overscroll-behavior:none;}
+.page{display:none;min-height:100vh;flex-direction:column;}
+.page.active{display:flex;}
+
+/* ===== HEADER ===== */
+.header{background:linear-gradient(135deg,var(--bg2),var(--bg3));padding:16px 16px 12px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);}
+.back-btn{width:36px;height:36px;border:none;background:rgba(255,255,255,0.08);border-radius:10px;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.header-title{font-size:17px;font-weight:700;flex:1;}
+.header-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+
+/* ===== SCROLL CONTENT ===== */
+.content{flex:1;overflow-y:auto;padding:16px;padding-bottom:40px;}
+
+/* ===== HOME SCREEN ===== */
+#page-home{background:var(--bg);}
+.home-hero{padding:32px 16px 24px;text-align:center;}
+.home-logo{width:80px;height:80px;margin:0 auto 16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 8px 32px rgba(108,99,255,0.4);}
+.home-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.home-subtitle{font-size:13px;color:var(--text2);margin-top:6px;}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 32px;}
+.home-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px 16px;text-align:center;cursor:pointer;transition:all 0.2s;active:scale(0.96);}
+.home-card:active{transform:scale(0.96);background:var(--card2);}
+.home-card-icon{font-size:32px;margin-bottom:12px;}
+.home-card-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;}
+.home-card.accent1{border-color:rgba(108,99,255,0.3);}
+.home-card.accent2{border-color:rgba(245,158,11,0.3);}
+.home-card.accent3{border-color:rgba(239,68,68,0.3);}
+.home-card.accent4{border-color:rgba(59,130,246,0.3);}
+.home-card.accent5{border-color:rgba(16,185,129,0.3);}
+.home-card.accent6{border-color:rgba(167,139,250,0.3);}
+
+/* ===== CARDS & SECTIONS ===== */
+.section-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;}
+.section-header{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.section-header-left{display:flex;align-items:center;gap:10px;}
+.section-icon{font-size:18px;}
+.section-title{font-size:15px;font-weight:700;}
+.section-total{font-size:14px;font-weight:700;color:var(--accent);}
+.section-body{padding:0 12px 12px;}
+.chevron{color:var(--text2);font-size:12px;transition:transform 0.2s;}
+.chevron.open{transform:rotate(180deg);}
+.section-collapsed .section-body{display:none;}
+
+/* ===== ITEM ROWS ===== */
+.item-row{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.item-row:active{opacity:0.7;}
+.item-color{width:4px;height:40px;border-radius:2px;flex-shrink:0;}
+.item-info{flex:1;min-width:0;}
+.item-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-meta{font-size:11px;color:var(--text2);margin-top:2px;}
+.item-amount{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;}
+.item-paid{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;font-size:14px;}
+.item-paid.paid{background:rgba(16,185,129,0.2);border-color:var(--green);color:var(--green);}
+.item-paid.unpaid{background:transparent;color:transparent;}
+
+/* ===== SUMMARY BAR ===== */
+.summary-bar{background:linear-gradient(135deg,var(--bg2),var(--bg3));border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;}
+.sum-label{font-size:11px;color:var(--text2);}
+.sum-value{font-size:15px;font-weight:700;margin-top:2px;}
+.sum-value.green{color:var(--green);}
+.sum-value.red{color:var(--red);}
+.sum-value.blue{color:var(--blue);}
+
+/* ===== MONTH NAV ===== */
+.month-nav{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;margin-bottom:14px;}
+.month-nav-btn{background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px 8px;}
+.month-nav-label{font-size:16px;font-weight:700;}
+
+/* ===== FAB ===== */
+.fab{position:fixed;bottom:28px;right:20px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:white;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(108,99,255,0.5);z-index:200;}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:20px;border-top:1px solid var(--border);}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:18px;}
+.modal-close{position:absolute;right:20px;top:20px;background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:6px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.form-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 14px;outline:none;-webkit-appearance:none;}
+.form-input:focus{border-color:var(--accent);}
+.form-select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:15px;padding:12px 14px;outline:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:6px;}
+.toggle-label{font-size:14px;color:var(--text);}
+.toggle{width:44px;height:26px;background:var(--border);border-radius:13px;position:relative;cursor:pointer;transition:background 0.2s;}
+.toggle.on{background:var(--green);}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;background:white;border-radius:50%;top:3px;left:3px;transition:left 0.2s;}
+.toggle.on::after{left:21px;}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;}
+.btn{padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-danger{background:var(--red);color:white;}
+.btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border);}
+.btn-full{grid-column:1/-1;}
+
+/* ===== KURLAR ===== */
+.kur-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.kur-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+.kur-name{font-size:12px;color:var(--text2);margin-bottom:6px;}
+.kur-value{font-size:17px;font-weight:700;}
+.kur-edit{background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;padding:4px;}
+.kur-header{display:flex;align-items:center;justify-content:space-between;}
+
+/* ===== MAL VARLIĞI ===== */
+.asset-row{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:pointer;}
+.asset-row:active{opacity:0.7;}
+.asset-name{font-size:14px;font-weight:700;margin-bottom:8px;}
+.asset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.asset-kv{font-size:11px;color:var(--text2);}
+.asset-kv span{display:block;font-size:13px;font-weight:600;color:var(--text);margin-top:1px;}
+.asset-gain{font-size:12px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.asset-gain.pos{color:var(--green);}
+.asset-gain.neg{color:var(--red);}
+.total-asset-bar{background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(167,139,250,0.15));border:1px solid rgba(108,99,255,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+.total-asset-label{font-size:12px;color:var(--text2);margin-bottom:4px;}
+.total-asset-value{font-size:24px;font-weight:800;color:var(--accent2);}
+
+/* ===== ZEKAT ===== */
+.zekat-status{border-radius:var(--radius);padding:18px;margin-bottom:14px;text-align:center;}
+.zekat-status.above{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);}
+.zekat-status.below{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);}
+.zekat-status-title{font-size:16px;font-weight:700;margin-bottom:4px;}
+.zekat-status.above .zekat-status-title{color:var(--gold);}
+.zekat-status.below .zekat-status-title{color:var(--green);}
+.zekat-status-sub{font-size:12px;color:var(--text2);}
+.zekat-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+.zekat-row:last-child{border-bottom:none;}
+.zekat-key{font-size:13px;color:var(--text2);}
+.zekat-val{font-size:14px;font-weight:700;}
+.payment-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.payment-item-left{flex:1;}
+.payment-item-name{font-size:13px;font-weight:600;}
+.payment-item-meta{font-size:11px;color:var(--text2);margin-top:2px;}
+.payment-item-amount{font-size:14px;font-weight:700;color:var(--green);}
+
+/* ===== PORTFÖY ===== */
+.portfolio-section{margin-bottom:16px;}
+.portfolio-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;padding:0 4px;}
+.portfolio-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.portfolio-item:active{opacity:0.7;}
+.pi-left{}
+.pi-name{font-size:14px;font-weight:600;}
+.pi-miktar{font-size:11px;color:var(--text2);margin-top:2px;}
+.pi-right{text-align:right;}
+.pi-tl{font-size:14px;font-weight:700;}
+.pi-change{font-size:11px;margin-top:2px;}
+.pi-change.pos{color:var(--green);}
+.pi-change.neg{color:var(--red);}
+.net-worth-bar{background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(59,130,246,0.1));border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.nw-item{text-align:center;}
+.nw-label{font-size:11px;color:var(--text2);}
+.nw-value{font-size:16px;font-weight:700;margin-top:3px;}
+
+/* ===== GIDER BORCLAR ===== */
+.debt-bar{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:var(--radius);padding:16px;margin-bottom:14px;text-align:center;}
+.debt-bar-label{font-size:12px;color:var(--text2);}
+.debt-bar-value{font-size:22px;font-weight:800;color:var(--red);margin-top:4px;}
+
+/* ===== EMPTY STATE ===== */
+.empty{text-align:center;padding:40px 20px;color:var(--text2);}
+.empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-text{font-size:14px;}
+
+/* ===== TAB BAR (Aylık) ===== */
+.tab-bar{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab-btn{padding:12px 16px;font-size:13px;font-weight:600;color:var(--text2);border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ===== UTILS ===== */
+.divider{height:1px;background:var(--border);margin:16px 0;}
+.chip{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(108,99,255,0.15);color:var(--accent2);margin-top:4px;}
+.chip.red{background:rgba(239,68,68,0.15);color:var(--red);}
+.chip.green{background:rgba(16,185,129,0.15);color:var(--green);}
+.chip.gold{background:rgba(245,158,11,0.15);color:var(--gold);}
+.info-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.6;}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:10px 20px;font-size:13px;font-weight:600;z-index:500;opacity:0;transition:opacity 0.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- ===== HOME ===== -->
+<div id="page-home" class="page active">
+  <div class="home-hero">
+    <div class="home-logo">💰</div>
+    <div class="home-title">My Finance</div>
+    <div class="home-subtitle">Kişisel Finans Yönetimi</div>
+  </div>
+  <div class="home-grid">
+    <div class="home-card accent1" onclick="goTo('aylik')">
+      <div class="home-card-icon">📊</div>
+      <div class="home-card-name">Aylık Gelir / Gider</div>
+    </div>
+    <div class="home-card accent2" onclick="goTo('portfolyo')">
+      <div class="home-card-icon">📈</div>
+      <div class="home-card-name">Gelir / Portföy Yönetimi</div>
+    </div>
+    <div class="home-card accent3" onclick="goTo('borclar')">
+      <div class="home-card-icon">💳</div>
+      <div class="home-card-name">Gider ve Borçlar</div>
+    </div>
+    <div class="home-card accent4" onclick="goTo('kurlar')">
+      <div class="home-card-icon">💱</div>
+      <div class="home-card-name">Güncel Kurlar</div>
+    </div>
+    <div class="home-card accent5" onclick="goTo('zekat')">
+      <div class="home-card-icon">🌙</div>
+      <div class="home-card-name">Zekat</div>
+    </div>
+    <div class="home-card accent6" onclick="goTo('malvarlik')">
+      <div class="home-card-icon">🏠</div>
+      <div class="home-card-name">Mal Varlığı</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AYLIK GELİR/GİDER ===== -->
+<div id="page-aylik" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Aylık Gelir / Gider</div></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchAylikTab('ozet')">Özet</button>
+    <button class="tab-btn" onclick="switchAylikTab('gelir')">Gelirler</button>
+    <button class="tab-btn" onclick="switchAylikTab('sabit')">Sabit Giderler</button>
+    <button class="tab-btn" onclick="switchAylikTab('degisken')">Değişken</button>
+    <button class="tab-btn" onclick="switchAylikTab('karsilastir')">Karşılaştır</button>
+  </div>
+  <div class="content">
+    <!-- Month Nav -->
+    <div class="month-nav">
+      <button class="month-nav-btn" onclick="changeMonth(-1)">‹</button>
+      <div class="month-nav-label" id="aylik-month-label"></div>
+      <button class="month-nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+
+    <!-- Özet Tab -->
+    <div id="tab-ozet" class="tab-content active">
+      <div class="summary-bar" id="aylik-summary"></div>
+      <div id="ozet-gelir-sec"></div>
+      <div id="ozet-sabit-sec"></div>
+      <div id="ozet-degisken-sec"></div>
+    </div>
+
+    <!-- Gelir Tab -->
+    <div id="tab-gelir" class="tab-content">
+      <div id="gelir-list"></div>
+      <div class="empty" id="gelir-empty" style="display:none;">
+        <div class="empty-icon">💵</div>
+        <div class="empty-text">Henüz gelir eklenmedi</div>
+      </div>
+    </div>
+
+    <!-- Sabit Tab -->
+    <div id="tab-sabit" class="tab-content">
+      <div id="sabit-list"></div>
+    </div>
+
+    <!-- Değişken Tab -->
+    <div id="tab-degisken" class="tab-content">
+      <div id="degisken-list"></div>
+      <div class="empty" id="degisken-empty" style="display:none;">
+        <div class="empty-icon">🛍</div>
+        <div class="empty-text">Bu ay değişken gider yok</div>
+      </div>
+    </div>
+
+    <!-- Karşılaştır Tab -->
+    <div id="tab-karsilastir" class="tab-content">
+      <div id="karsilastir-content"></div>
+    </div>
+  </div>
+  <button class="fab" id="aylik-fab" onclick="openAylikModal()">+</button>
+</div>
+
+<!-- ===== PORTFÖY ===== -->
+<div id="page-portfolyo" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Gelir / Portföy</div></div>
+  </div>
+  <div class="content">
+    <div class="net-worth-bar" id="portfolyo-bar"></div>
+    <div id="portfolyo-content"></div>
+  </div>
+  <button class="fab" onclick="openPortfolyoModal()">+</button>
+</div>
+
+<!-- ===== BORÇLAR ===== -->
+<div id="page-borclar" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Gider ve Borçlar</div></div>
+  </div>
+  <div class="content">
+    <div class="debt-bar" id="borclar-bar"></div>
+    <div id="borclar-content"></div>
+  </div>
+  <button class="fab" onclick="openBorcModal()">+</button>
+</div>
+
+<!-- ===== KURLAR ===== -->
+<div id="page-kurlar" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Güncel Kurlar</div></div>
+  </div>
+  <div class="content">
+    <div class="info-box">💡 Kurları manuel olarak güncelleyin. Bu kurlar tüm modüllerde TL karşılığı hesaplamak için kullanılır.</div>
+    <div class="kur-grid" id="kur-grid"></div>
+    <div style="margin-top:16px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;font-weight:700;">ALTIN</div>
+      <div class="kur-grid" id="altin-grid"></div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;font-weight:700;">DİĞER</div>
+      <div class="kur-grid" id="diger-kur-grid"></div>
+    </div>
+    <div style="margin-top:20px;text-align:center;">
+      <div style="font-size:12px;color:var(--text2);" id="kur-updated-at"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ZEKAT ===== -->
+<div id="page-zekat" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Zekat</div></div>
+  </div>
+  <div class="content">
+    <div class="tab-bar" style="margin:-16px -16px 16px;position:sticky;top:0;z-index:50;">
+      <button class="tab-btn active" onclick="switchZekatTab('hesap')">Hesap</button>
+      <button class="tab-btn" onclick="switchZekatTab('odemeler')">Ödemeler</button>
+    </div>
+    <div id="zekat-hesap-tab" class="tab-content active">
+      <div id="zekat-status-box"></div>
+      <div class="section-card">
+        <div class="section-header" style="cursor:default;">
+          <div class="section-header-left"><span class="section-icon">🌙</span><span class="section-title">Zekat Hesabı</span></div>
+        </div>
+        <div class="section-body" id="zekat-calc-rows"></div>
+      </div>
+    </div>
+    <div id="zekat-odemeler-tab" class="tab-content">
+      <button class="btn btn-primary btn-full" style="margin-bottom:14px;" onclick="openZekatOdemeModal()">+ Ödeme Ekle</button>
+      <div id="zekat-odeme-list"></div>
+      <div id="zekat-ozet-rows" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAL VARLIĞI ===== -->
+<div id="page-malvarlik" class="page">
+  <div class="header">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div><div class="header-title">Mal Varlığı</div></div>
+  </div>
+  <div class="content">
+    <div class="total-asset-bar">
+      <div class="total-asset-label">Toplam Varlık Değerim (Mevcut Payım)</div>
+      <div class="total-asset-value" id="malvarlik-toplam"></div>
+    </div>
+    <div id="malvarlik-list"></div>
+  </div>
+  <button class="fab" onclick="openMalvarlikModal()">+</button>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Aylık Modal -->
+<div class="modal-overlay" id="aylik-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="aylik-modal-title">Kalem Ekle</div>
+      <button class="modal-close" onclick="closeModal('aylik-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tür</label>
+      <select class="form-select" id="modal-tur" onchange="onTurChange()">
+        <option value="gelir">Gelir</option>
+        <option value="sabit">Sabit Gider</option>
+        <option value="degisken">Değişken Gider</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ad</label>
+      <input type="text" class="form-input" id="modal-ad" placeholder="Kalem adı">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar</label>
+      <div style="display:flex;gap:8px;">
+        <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;">
+        <select class="form-select" id="modal-para" style="width:100px;">
+          <option value="TL">₺ TL</option>
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+          <option value="ALTIN">gr Altın</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="modal-tl-preview" style="display:none;">
+      <div style="font-size:12px;color:var(--text2);">TL Karşılığı: <span id="modal-tl-val" style="color:var(--accent2);font-weight:700;"></span></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ödeme Tarihi (Gün)</label>
+      <input type="number" class="form-input" id="modal-tarih" placeholder="Örn: 5 (ayın 5'i)" min="1" max="31">
+    </div>
+    <div class="form-row" id="modal-taksit-row">
+      <div class="form-group">
+        <label class="form-label">Taksit Sayısı</label>
+        <input type="number" class="form-input" id="modal-taksit" placeholder="Toplam kaç taksit" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kalan Taksit</label>
+        <input type="number" class="form-input" id="modal-kalan-taksit" placeholder="Kalan taksit" min="0">
+      </div>
+    </div>
+    <div class="toggle-row" id="modal-recur-row">
+      <span class="toggle-label">Sonraki aylara otomatik taşı</span>
+      <div class="toggle" id="modal-recur-toggle" onclick="toggleModal('modal-recur-toggle')"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="modal-del-btn" onclick="deleteAylikItem()" style="display:none;">Sil</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveAylikItem()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Portföy Modal -->
+<div class="modal-overlay" id="portfolyo-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="portfolyo-modal-title">Varlık Ekle</div>
+      <button class="modal-close" onclick="closeModal('portfolyo-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Varlık Türü</label>
+      <select class="form-select" id="pf-tur">
+        <option value="TL">TL Nakit</option>
+        <option value="USD">USD Dolar</option>
+        <option value="EUR">EUR Euro</option>
+        <option value="ALTIN_GR">Altın (gram)</option>
+        <option value="ALTIN_CEYREK">Çeyrek Altın</option>
+        <option value="ALTIN_YARIM">Yarım Altın</option>
+        <option value="ALTIN_TAM">Tam Altın</option>
+        <option value="GUMUS">Gümüş (gram)</option>
+        <option value="PLATIN">Platin (gram)</option>
+        <option value="HISSE_TL">Hisse Senedi (TL)</option>
+        <option value="HISSE_USD">Hisse Senedi (USD)</option>
+        <option value="FON_TL">Fon (TL)</option>
+        <option value="BES_TL">BES Birikimi (TL)</option>
+        <option value="ALACAK_TL">Alacaklar (TL)</option>
+        <option value="DIGER">Diğer Varlıklar (TL)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ad / Açıklama</label>
+      <input type="text" class="form-input" id="pf-ad" placeholder="Örn: Vakıfbank USD, XYZ Hisse">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Miktar</label>
+      <input type="number" class="form-input" id="pf-miktar" placeholder="0" step="any">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="pf-del-btn" onclick="deletePortfolyoItem()" style="display:none;">Sil</button>
+      <button class="btn btn-primary" onclick="savePortfolyoItem()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Borç Modal -->
+<div class="modal-overlay" id="borc-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="borc-modal-title">Borç Ekle</div>
+      <button class="modal-close" onclick="closeModal('borc-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Borç Türü</label>
+      <select class="form-select" id="borc-tur">
+        <option value="sahsi_tl">Şahsi Borç (TL)</option>
+        <option value="sahsi_usd">Şahsi Borç (USD)</option>
+        <option value="sahsi_eur">Şahsi Borç (EUR)</option>
+        <option value="sahsi_altin">Şahsi Borç (Altın gr)</option>
+        <option value="banka_tl">Banka Borcu (TL)</option>
+        <option value="banka_usd">Banka Borcu (USD)</option>
+        <option value="banka_eur">Banka Borcu (EUR)</option>
+        <option value="kk_tl">Kredi Kartı (TL)</option>
+        <option value="kk_usd">Kredi Kartı (USD)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Açıklama</label>
+      <input type="text" class="form-input" id="borc-ad" placeholder="Kime borçlu, ne için vb.">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar</label>
+      <input type="number" class="form-input" id="borc-tutar" placeholder="0" step="any">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Son Ödeme / Vade</label>
+      <input type="text" class="form-input" id="borc-vade" placeholder="Örn: Aralık 2026">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="borc-del-btn" onclick="deleteBorcItem()" style="display:none;">Sil</button>
+      <button class="btn btn-primary" onclick="saveBorcItem()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kur Edit Modal -->
+<div class="modal-overlay" id="kur-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="kur-modal-title">Kur Güncelle</div>
+      <button class="modal-close" onclick="closeModal('kur-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" id="kur-modal-label">Değer (₺)</label>
+      <input type="number" class="form-input" id="kur-modal-val" step="any" placeholder="0.00">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('kur-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveKur()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zekat Ödeme Modal -->
+<div class="modal-overlay" id="zekat-odeme-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title">Zekat Ödemesi Ekle</div>
+      <button class="modal-close" onclick="closeModal('zekat-odeme-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Alıcı</label>
+      <input type="text" class="form-input" id="zo-alici" placeholder="Kime ödendi">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar</label>
+      <div style="display:flex;gap:8px;">
+        <input type="number" class="form-input" id="zo-tutar" placeholder="0" style="flex:1;" step="any">
+        <select class="form-select" id="zo-para" style="width:100px;" onchange="onZekatParaChange()">
+          <option value="TL">₺ TL</option>
+          <option value="USD">$ USD</option>
+          <option value="EUR">€ EUR</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="zo-kur-row" style="display:none;">
+      <label class="form-label">O Anki Kur (₺)</label>
+      <input type="number" class="form-input" id="zo-kur" placeholder="Ödeme anındaki kur" step="any">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Bu kur kalıcı olarak kaydedilecek (historik kilitli)</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Yıl</label>
+      <input type="number" class="form-input" id="zo-yil" placeholder="2026">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tarih</label>
+      <input type="date" class="form-input" id="zo-tarih">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('zekat-odeme-modal')">İptal</button>
+      <button class="btn btn-primary" onclick="saveZekatOdeme()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mal Varlığı Modal -->
+<div class="modal-overlay" id="malvarlik-modal">
+  <div class="modal">
+    <div style="position:relative;">
+      <div class="modal-title" id="mv-modal-title">Varlık Ekle</div>
+      <button class="modal-close" onclick="closeModal('malvarlik-modal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Varlık Adı</label>
+      <input type="text" class="form-input" id="mv-ad" placeholder="Örn: Çatalca Arsa">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Alış Fiyatı (₺)</label>
+        <input type="number" class="form-input" id="mv-alis" placeholder="0" step="any">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alış Tarihi</label>
+        <input type="text" class="form-input" id="mv-tarih" placeholder="Örn: 2020">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Benim Payım / Alış (%)</label>
+      <input type="number" class="form-input" id="mv-pay-alis" placeholder="100" min="0" max="100" step="any">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Mevcut Rayiç (₺)</label>
+        <input type="number" class="form-input" id="mv-rayic" placeholder="0" step="any">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Benim Payım / Mevcut (%)</label>
+        <input type="number" class="form-input" id="mv-pay-mevcut" placeholder="100" min="0" max="100" step="any">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="mv-del-btn" onclick="deleteMalvarlikItem()" style="display:none;">Sil</button>
+      <button class="btn btn-primary" onclick="saveMalvarlikItem()">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ===========================
+   DATA STORE
+=========================== */
+const LS = 'myfinance_v1';
+const LS_AYLIK = 'butce_v4'; // preserve existing budget data
+
+let state = {
+  kurlar: {
+    USD:38.5, EUR:42.0,
+    ALTIN_GR:4100, ALTIN_CEYREK:66000, ALTIN_YARIM:132000, ALTIN_TAM:264000,
+    GUMUS:50, PLATIN:1600,
+    updatedAt: null
+  },
+  portfolyo: [],
+  borclar: [],
+  malvarlik: [
+    {id:'mv1',ad:'Avrupa Konutları Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv2',ad:'Seat Ateca Araç',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv3',ad:'Çatalca Kestanelik Arsa',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv4',ad:'Çatalca İzzettin Tarla',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv5',ad:'Cevizli Dap Kule Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv6',ad:'Çatalca İnceğiz Arsa',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+    {id:'mv7',ad:'Fuzul Topraktan Daire',alis:0,tarih:'',payAlis:100,rayic:0,payMevcut:100},
+  ],
+  zekatOdemeler: [],
+  zekatYil: new Date().getFullYear()
+};
+
+// Aylık data – uses separate LS key (butce_v4)
+let aylikData = {};
+let curYear = new Date().getFullYear();
+let curMonth = new Date().getMonth() + 1;
+let aylikTab = 'ozet';
+let aylikEditCtx = null; // {tur, idx}
+let editingPortfolyo = null;
+let editingBorc = null;
+let editingMalvarlik = null;
+let editingKurKey = null;
+let zekatTab = 'hesap';
+
+const MONTHS_TR = ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
+const CAT_COLORS = {
+  maas:'#6c63ff', kira:'#3b82f6', yatırım:'#10b981', diger_gelir:'#a78bfa',
+  aidat:'#f59e0b', egitim:'#ef4444', ulasim:'#06b6d4', gida:'#84cc16',
+  fatura:'#f97316', kart:'#8b5cf6', saglik:'#14b8a6', diger:'#94a3b8'
+};
+
+/* Default Aylık items */
+const DEFAULT_GELIR = [{id:uid(),name:'Maaş',cat:'maas',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null}];
+const DEFAULT_SABIT = [
+  {id:uid(),name:'Fuzul',cat:'kira',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Ev Aidat',cat:'aidat',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Yusuf Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Büşra Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Cüneyt Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Memin Harçlık',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Cüneyt Yurt',cat:'egitim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Memin Servis',cat:'ulasim',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Memin Yemek',cat:'gida',amount:0,currency:'TL',recurring:true,odemeTarih:1,taksit:null,kalanTaksit:null},
+];
+const DEFAULT_DEGISKEN = [
+  {id:uid(),name:'YKB Kart',cat:'kart',amount:0,currency:'TL',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null},
+  {id:uid(),name:'Kuveyt Türk Kart',cat:'kart',amount:0,currency:'TL',recurring:false,odemeTarih:null,taksit:null,kalanTaksit:null},
+];
+
+/* ===========================
+   UTILITIES
+=========================== */
+function uid(){return 'id'+Math.random().toString(36).slice(2);}
+
+function fmt(n){
+  if(!n && n!==0) return '—';
+  return Number(n).toLocaleString('tr-TR',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+
+function fmtTL(n){return fmt(n)+' ₺';}
+
+function toTL(amount, currency){
+  if(!amount) return 0;
+  const a = parseFloat(amount)||0;
+  const k = state.kurlar;
+  switch(currency){
+    case 'TL': return a;
+    case 'USD': return a * k.USD;
+    case 'EUR': return a * k.EUR;
+    case 'ALTIN': return a * k.ALTIN_GR;
+    default: return a;
+  }
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+function toggleModal(id){
+  const el = document.getElementById(id);
+  el.classList.toggle('on');
+}
+
+function isOn(id){return document.getElementById(id).classList.contains('on');}
+function setOn(id,v){
+  const el = document.getElementById(id);
+  if(v) el.classList.add('on'); else el.classList.remove('on');
+}
+
+/* ===========================
+   LOAD / SAVE
+=========================== */
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS);
+    if(raw) Object.assign(state, JSON.parse(raw));
+  }catch(e){}
+  // Load legacy aylik data
+  try{
+    const raw2 = localStorage.getItem(LS_AYLIK);
+    if(raw2) aylikData = JSON.parse(raw2);
+  }catch(e){}
+}
+
+function saveState(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+}
+
+function saveAylik(){
+  try{ localStorage.setItem(LS_AYLIK, JSON.stringify(aylikData)); }catch(e){}
+}
+
+/* ===========================
+   NAVIGATION
+=========================== */
+function goTo(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  window.scrollTo(0,0);
+  if(page==='aylik') renderAylik();
+  if(page==='portfolyo') renderPortfolyo();
+  if(page==='borclar') renderBorclar();
+  if(page==='kurlar') renderKurlar();
+  if(page==='zekat') renderZekat();
+  if(page==='malvarlik') renderMalvarlik();
+}
+
+function goHome(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-home').classList.add('active');
+}
+
+/* ===========================
+   AYLИК DATA HELPERS
+=========================== */
+function getMonthKey(y,m){return `${y}-${String(m).padStart(2,'0')}`;}
+
+function getMonthData(y,m){
+  const key = getMonthKey(y,m);
+  if(!aylikData[key]){
+    // Carry from previous month
+    const pm = m===1?12:m-1;
+    const py = m===1?y-1:y;
+    const prevKey = getMonthKey(py,pm);
+    if(aylikData[prevKey]){
+      const prev = aylikData[prevKey];
+      aylikData[key] = {
+        gelir: prev.gelir.filter(i=>i.recurring===true).map(i=>({...i,id:uid(),paid:false})),
+        sabit: prev.sabit.map(i=>{
+          const ni = {...i,id:uid(),paid:false};
+          // decrement installments
+          if(ni.kalanTaksit!=null && ni.kalanTaksit>0) ni.kalanTaksit--;
+          return ni;
+        }).filter(i=>i.kalanTaksit==null||i.kalanTaksit>0||i.taksit==null),
+        degisken: []
+      };
+    } else {
+      aylikData[key] = {
+        gelir: JSON.parse(JSON.stringify(DEFAULT_GELIR)),
+        sabit: JSON.parse(JSON.stringify(DEFAULT_SABIT)),
+        degisken: JSON.parse(JSON.stringify(DEFAULT_DEGISKEN))
+      };
+    }
+    saveAylik();
+  }
+  // Ensure paid field
+  ['gelir','sabit','degisken'].forEach(tur=>{
+    (aylikData[key][tur]||[]).forEach(i=>{if(i.paid===undefined)i.paid=false;});
+  });
+  return aylikData[key];
+}
+
+function saveCurrentMonth(){
+  const key = getMonthKey(curYear, curMonth);
+  aylikData[key] = getMonthData(curYear,curMonth);
+  saveAylik();
+}
+
+/* ===========================
+   AYLИК RENDER
+=========================== */
+function renderAylik(){
+  document.getElementById('aylik-month-label').textContent = `${MONTHS_TR[curMonth]} ${curYear}`;
+  const d = getMonthData(curYear,curMonth);
+
+  const gelirTL = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+  const sabitTL = d.sabit.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+  const degTL = d.degisken.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+  const totalGider = sabitTL+degTL;
+  const net = gelirTL-totalGider;
+
+  document.getElementById('aylik-summary').innerHTML = `
+    <div>
+      <div class="sum-label">Toplam Gelir</div>
+      <div class="sum-value green">${fmtTL(gelirTL)}</div>
+    </div>
+    <div>
+      <div class="sum-label">Toplam Gider</div>
+      <div class="sum-value red">${fmtTL(totalGider)}</div>
+    </div>
+    <div>
+      <div class="sum-label">Net Durum</div>
+      <div class="sum-value ${net>=0?'green':'red'}">${fmtTL(net)}</div>
+    </div>
+  `;
+
+  if(aylikTab==='ozet') renderOzet(d,gelirTL,sabitTL,degTL);
+  if(aylikTab==='gelir') renderGelirTab(d);
+  if(aylikTab==='sabit') renderSabitTab(d);
+  if(aylikTab==='degisken') renderDegiskenTab(d);
+  if(aylikTab==='karsilastir') renderKarsilastir();
+}
+
+function renderOzet(d,gelirTL,sabitTL,degTL){
+  renderMiniSection('ozet-gelir-sec','gelir',d.gelir,'Gelirler','💵',gelirTL);
+  renderMiniSection('ozet-sabit-sec','sabit',d.sabit,'Sabit Giderler','📌',sabitTL);
+  renderMiniSection('ozet-degisken-sec','degisken',d.degisken,'Değişken Giderler','🛍',degTL);
+}
+
+function renderMiniSection(containerId, tur, items, title, icon, total){
+  const cont = document.getElementById(containerId);
+  const nonZero = items.filter(i=>i.amount>0);
+  cont.innerHTML = `
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <div class="section-header-left">
+          <span class="section-icon">${icon}</span>
+          <span class="section-title">${title}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="section-total">${fmtTL(total)}</span>
+          <span class="chevron open">▼</span>
+        </div>
+      </div>
+      <div class="section-body">
+        ${nonZero.map(i=>itemHTML(tur,i)).join('')}
+        ${nonZero.length===0?`<div style="text-align:center;color:var(--text2);padding:16px;font-size:13px;">Henüz veri yok</div>`:''}
+        <button style="width:100%;margin-top:8px;padding:10px;background:rgba(108,99,255,0.1);border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-size:13px;cursor:pointer;" onclick="openAylikModalFor('${tur}')">+ ${title} Ekle</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderGelirTab(d){
+  const el = document.getElementById('gelir-list');
+  el.innerHTML = d.gelir.map(i=>itemHTML('gelir',i)).join('');
+  document.getElementById('gelir-empty').style.display = d.gelir.length?'none':'block';
+}
+
+function renderSabitTab(d){
+  const el = document.getElementById('sabit-list');
+  el.innerHTML = d.sabit.map(i=>itemHTML('sabit',i)).join('');
+}
+
+function renderDegiskenTab(d){
+  const el = document.getElementById('degisken-list');
+  el.innerHTML = d.degisken.map(i=>itemHTML('degisken',i)).join('');
+  document.getElementById('degisken-empty').style.display = d.degisken.length?'none':'block';
+}
+
+function itemHTML(tur,item){
+  const color = CAT_COLORS[item.cat]||'#94a3b8';
+  const amountTL = toTL(item.amount, item.currency||'TL');
+  const isFC = item.currency && item.currency!=='TL';
+  let meta = '';
+  if(item.odemeTarih) meta += `Her ayın ${item.odemeTarih}'i`;
+  if(item.taksit) meta += `${meta?' · ':''}${item.kalanTaksit||0}/${item.taksit} taksit kaldı`;
+  if(item.currency && item.currency!=='TL') meta += `${meta?' · ':''}${fmt(item.amount)} ${item.currency}`;
+
+  return `<div class="item-row" onclick="openAylikEdit('${tur}','${item.id}')">
+    <div class="item-color" style="background:${color}"></div>
+    <div class="item-info">
+      <div class="item-name">${item.name}</div>
+      ${meta?`<div class="item-meta">${meta}</div>`:''}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="item-amount">${fmtTL(amountTL)}</div>
+      <div class="item-paid ${item.paid?'paid':'unpaid'}" onclick="event.stopPropagation();togglePaid('${tur}','${item.id}')">${item.paid?'✓':''}</div>
+    </div>
+  </div>`;
+}
+
+function togglePaid(tur,id){
+  const d = getMonthData(curYear,curMonth);
+  const item = d[tur].find(i=>i.id===id);
+  if(item) item.paid = !item.paid;
+  saveAylik();
+  renderAylik();
+}
+
+function toggleSection(header){
+  const card = header.closest('.section-card');
+  card.classList.toggle('section-collapsed');
+  const ch = header.querySelector('.chevron');
+  ch.classList.toggle('open');
+}
+
+function changeMonth(dir){
+  curMonth += dir;
+  if(curMonth>12){curMonth=1;curYear++;}
+  if(curMonth<1){curMonth=12;curYear--;}
+  renderAylik();
+}
+
+function switchAylikTab(tab){
+  aylikTab = tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(tab)||
+      (tab==='ozet'&&b.textContent==='Özet')||
+      (tab==='gelir'&&b.textContent==='Gelirler')||
+      (tab==='sabit'&&b.textContent==='Sabit Giderler')||
+      (tab==='degisken'&&b.textContent==='Değişken')||
+      (tab==='karsilastir'&&b.textContent==='Karşılaştır'));
+  });
+  document.querySelectorAll('#page-aylik .tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  // FAB visibility
+  document.getElementById('aylik-fab').style.display = tab==='karsilastir'?'none':'flex';
+  renderAylik();
+}
+
+function renderKarsilastir(){
+  const cont = document.getElementById('karsilastir-content');
+  let months = [];
+  for(let i=0;i<6;i++){
+    let m = curMonth-i; let y = curYear;
+    if(m<=0){m+=12;y--;}
+    months.push({y,m});
+  }
+  months.reverse();
+  let html = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="color:var(--text2);">
+      <th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--border);">Ay</th>
+      <th style="text-align:right;padding:8px 4px;border-bottom:1px solid var(--border);">Gelir</th>
+      <th style="text-align:right;padding:8px 4px;border-bottom:1px solid var(--border);">Gider</th>
+      <th style="text-align:right;padding:8px 4px;border-bottom:1px solid var(--border);">Net</th>
+    </tr>`;
+  months.forEach(({y,m})=>{
+    const key = getMonthKey(y,m);
+    const d = aylikData[key];
+    if(!d){html+=`<tr><td colspan="4" style="padding:8px 4px;color:var(--text2);">${MONTHS_TR[m]} ${y} — veri yok</td></tr>`;return;}
+    const gel = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+    const gid = [...(d.sabit||[]),...(d.degisken||[])].reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+    const net = gel-gid;
+    html+=`<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:10px 4px;">${MONTHS_TR[m]} ${y}</td>
+      <td style="text-align:right;padding:10px 4px;color:var(--green);">${fmtTL(gel)}</td>
+      <td style="text-align:right;padding:10px 4px;color:var(--red);">${fmtTL(gid)}</td>
+      <td style="text-align:right;padding:10px 4px;color:${net>=0?'var(--green)':'var(--red)'};">${fmtTL(net)}</td>
+    </tr>`;
+  });
+  html += '</table></div>';
+  cont.innerHTML = html;
+}
+
+/* ===========================
+   AYLІК MODAL
+=========================== */
+function openAylikModal(){
+  openAylikModalFor(aylikTab==='gelir'?'gelir':aylikTab==='sabit'?'sabit':'degisken');
+}
+
+function openAylikModalFor(tur){
+  aylikEditCtx = null;
+  document.getElementById('aylik-modal-title').textContent = 'Kalem Ekle';
+  document.getElementById('modal-tur').value = tur;
+  document.getElementById('modal-ad').value = '';
+  document.getElementById('modal-tutar').value = '';
+  document.getElementById('modal-para').value = 'TL';
+  document.getElementById('modal-tarih').value = '';
+  document.getElementById('modal-taksit').value = '';
+  document.getElementById('modal-kalan-taksit').value = '';
+  setOn('modal-recur-toggle', tur!=='degisken');
+  document.getElementById('modal-del-btn').style.display = 'none';
+  document.getElementById('modal-save-btn').className = 'btn btn-primary btn-full';
+  onTurChange();
+  openModal('aylik-modal');
+}
+
+function openAylikEdit(tur,id){
+  const d = getMonthData(curYear,curMonth);
+  const idx = d[tur].findIndex(i=>i.id===id);
+  if(idx<0) return;
+  const item = d[tur][idx];
+  aylikEditCtx = {tur,idx,id};
+  document.getElementById('aylik-modal-title').textContent = 'Kalemi Düzenle';
+  document.getElementById('modal-tur').value = tur;
+  document.getElementById('modal-ad').value = item.name;
+  document.getElementById('modal-tutar').value = item.amount||'';
+  document.getElementById('modal-para').value = item.currency||'TL';
+  document.getElementById('modal-tarih').value = item.odemeTarih||'';
+  document.getElementById('modal-taksit').value = item.taksit||'';
+  document.getElementById('modal-kalan-taksit').value = item.kalanTaksit!=null?item.kalanTaksit:'';
+  setOn('modal-recur-toggle', item.recurring===true);
+  document.getElementById('modal-del-btn').style.display = 'block';
+  document.getElementById('modal-save-btn').className = 'btn btn-primary';
+  onTurChange();
+  openModal('aylik-modal');
+}
+
+function onTurChange(){
+  const tur = document.getElementById('modal-tur').value;
+  const recRow = document.getElementById('modal-recur-row');
+  const taksitRow = document.getElementById('modal-taksit-row');
+  recRow.style.display = tur==='degisken'?'none':'flex';
+  taksitRow.style.display = tur==='degisken'?'grid':'grid';
+  updateTLPreview();
+}
+
+function updateTLPreview(){
+  const cur = document.getElementById('modal-para').value;
+  const amt = parseFloat(document.getElementById('modal-tutar').value)||0;
+  const prev = document.getElementById('modal-tl-preview');
+  const val = document.getElementById('modal-tl-val');
+  if(cur!=='TL' && amt>0){
+    prev.style.display='block';
+    val.textContent = fmtTL(toTL(amt,cur));
+  } else {
+    prev.style.display='none';
+  }
+}
+
+document.getElementById('modal-tutar').addEventListener('input',updateTLPreview);
+document.getElementById('modal-para').addEventListener('change',updateTLPreview);
+
+function saveAylikItem(){
+  const tur = document.getElementById('modal-tur').value;
+  const name = document.getElementById('modal-ad').value.trim();
+  const amount = parseFloat(document.getElementById('modal-tutar').value)||0;
+  const currency = document.getElementById('modal-para').value;
+  const odemeTarih = parseInt(document.getElementById('modal-tarih').value)||null;
+  const taksit = parseInt(document.getElementById('modal-taksit').value)||null;
+  const kalanTaksit = document.getElementById('modal-kalan-taksit').value!==''?parseInt(document.getElementById('modal-kalan-taksit').value):taksit;
+  const recurring = isOn('modal-recur-toggle');
+
+  if(!name){showToast('Ad boş olamaz');return;}
+
+  const d = getMonthData(curYear,curMonth);
+  if(aylikEditCtx){
+    const item = d[aylikEditCtx.tur][aylikEditCtx.idx];
+    // If tur changed, move
+    if(aylikEditCtx.tur !== tur){
+      d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+      d[tur].push({...item,name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring});
+    } else {
+      Object.assign(item,{name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring});
+    }
+  } else {
+    d[tur].push({id:uid(),name,amount,currency,odemeTarih,taksit,kalanTaksit,recurring,paid:false});
+  }
+  saveAylik();
+  closeModal('aylik-modal');
+  renderAylik();
+}
+
+function deleteAylikItem(){
+  if(!aylikEditCtx) return;
+  const d = getMonthData(curYear,curMonth);
+  d[aylikEditCtx.tur].splice(aylikEditCtx.idx,1);
+  saveAylik();
+  closeModal('aylik-modal');
+  renderAylik();
+}
+
+/* ===========================
+   PORTFÖY
+=========================== */
+const PF_LABELS = {
+  TL:'TL Nakit', USD:'USD Dolar', EUR:'EUR Euro',
+  ALTIN_GR:'Altın (gr)', ALTIN_CEYREK:'Çeyrek Altın', ALTIN_YARIM:'Yarım Altın', ALTIN_TAM:'Tam Altın',
+  GUMUS:'Gümüş (gr)', PLATIN:'Platin (gr)',
+  HISSE_TL:'Hisse Senedi (TL)', HISSE_USD:'Hisse Senedi (USD)',
+  FON_TL:'Fon (TL)', BES_TL:'BES Birikimi', ALACAK_TL:'Alacaklar', DIGER:'Diğer Varlıklar'
+};
+
+function pfToTL(item){
+  const m = item.miktar||0;
+  const k = state.kurlar;
+  switch(item.tur){
+    case 'TL': return m;
+    case 'USD': return m*k.USD;
+    case 'EUR': return m*k.EUR;
+    case 'ALTIN_GR': return m*k.ALTIN_GR;
+    case 'ALTIN_CEYREK': return m*k.ALTIN_CEYREK;
+    case 'ALTIN_YARIM': return m*k.ALTIN_YARIM;
+    case 'ALTIN_TAM': return m*k.ALTIN_TAM;
+    case 'GUMUS': return m*k.GUMUS;
+    case 'PLATIN': return m*k.PLATIN;
+    case 'HISSE_USD': return m*k.USD;
+    default: return m; // TL based
+  }
+}
+
+function renderPortfolyo(){
+  const groups = {nakit:[], altin:[], yatirim:[], diger:[]};
+  state.portfolyo.forEach(item=>{
+    if(['TL','USD','EUR'].includes(item.tur)) groups.nakit.push(item);
+    else if(item.tur.startsWith('ALTIN')||item.tur==='GUMUS'||item.tur==='PLATIN') groups.altin.push(item);
+    else if(['HISSE_TL','HISSE_USD','FON_TL','BES_TL'].includes(item.tur)) groups.yatirim.push(item);
+    else groups.diger.push(item);
+  });
+
+  const total = state.portfolyo.reduce((s,i)=>s+pfToTL(i),0);
+  const borcTotal = borcTotalTL();
+  const net = total - borcTotal;
+
+  document.getElementById('portfolyo-bar').innerHTML = `
+    <div class="nw-item">
+      <div class="nw-label">Toplam Varlık</div>
+      <div class="nw-value" style="color:var(--accent2)">${fmtTL(total)}</div>
+    </div>
+    <div class="nw-item">
+      <div class="nw-label">Net Servet</div>
+      <div class="nw-value" style="color:${net>=0?'var(--green)':'var(--red)'}">${fmtTL(net)}</div>
+    </div>
+  `;
+
+  const cont = document.getElementById('portfolyo-content');
+  const groupLabels = {nakit:'💵 Nakit & Döviz', altin:'🥇 Altın & Madenler', yatirim:'📈 Yatırım', diger:'📦 Diğer'};
+  cont.innerHTML = Object.entries(groups).map(([key,items])=>{
+    if(items.length===0) return '';
+    return `<div class="portfolio-section">
+      <div class="portfolio-title">${groupLabels[key]}</div>
+      ${items.map(item=>{
+        const tl = pfToTL(item);
+        const isForeign = !['TL','HISSE_TL','FON_TL','BES_TL','ALACAK_TL','DIGER'].includes(item.tur);
+        return `<div class="portfolio-item" onclick="openPortfolyoEdit('${item.id}')">
+          <div class="pi-left">
+            <div class="pi-name">${item.ad||PF_LABELS[item.tur]}</div>
+            <div class="pi-miktar">${fmt(item.miktar)} ${item.tur.replace('_',' ')}${isForeign?` · ${fmtTL(tl)}`:''}</div>
+          </div>
+          <div class="pi-right">
+            <div class="pi-tl">${fmtTL(tl)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  if(state.portfolyo.length===0){
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">📈</div><div class="empty-text">Henüz varlık eklenmedi</div></div>`;
+  }
+}
+
+function openPortfolyoModal(){
+  editingPortfolyo = null;
+  document.getElementById('portfolyo-modal-title').textContent = 'Varlık Ekle';
+  document.getElementById('pf-tur').value = 'TL';
+  document.getElementById('pf-ad').value = '';
+  document.getElementById('pf-miktar').value = '';
+  document.getElementById('pf-del-btn').style.display = 'none';
+  openModal('portfolyo-modal');
+}
+
+function openPortfolyoEdit(id){
+  const item = state.portfolyo.find(i=>i.id===id);
+  if(!item) return;
+  editingPortfolyo = id;
+  document.getElementById('portfolyo-modal-title').textContent = 'Varlık Düzenle';
+  document.getElementById('pf-tur').value = item.tur;
+  document.getElementById('pf-ad').value = item.ad||'';
+  document.getElementById('pf-miktar').value = item.miktar||'';
+  document.getElementById('pf-del-btn').style.display = 'block';
+  openModal('portfolyo-modal');
+}
+
+function savePortfolyoItem(){
+  const tur = document.getElementById('pf-tur').value;
+  const ad = document.getElementById('pf-ad').value.trim();
+  const miktar = parseFloat(document.getElementById('pf-miktar').value)||0;
+  if(editingPortfolyo){
+    const item = state.portfolyo.find(i=>i.id===editingPortfolyo);
+    if(item) Object.assign(item,{tur,ad,miktar});
+  } else {
+    state.portfolyo.push({id:uid(),tur,ad,miktar});
+  }
+  saveState();
+  closeModal('portfolyo-modal');
+  renderPortfolyo();
+}
+
+function deletePortfolyoItem(){
+  state.portfolyo = state.portfolyo.filter(i=>i.id!==editingPortfolyo);
+  saveState();
+  closeModal('portfolyo-modal');
+  renderPortfolyo();
+}
+
+/* ===========================
+   BORÇLAR
+=========================== */
+const BORC_LABELS = {
+  sahsi_tl:'Şahsi Borç (TL)', sahsi_usd:'Şahsi Borç (USD)', sahsi_eur:'Şahsi Borç (EUR)',
+  sahsi_altin:'Şahsi Borç (Altın gr)',
+  banka_tl:'Banka Borcu (TL)', banka_usd:'Banka Borcu (USD)', banka_eur:'Banka Borcu (EUR)',
+  kk_tl:'Kredi Kartı (TL)', kk_usd:'Kredi Kartı (USD)'
+};
+
+function borcToTL(item){
+  const a = item.tutar||0;
+  const k = state.kurlar;
+  if(item.tur.endsWith('usd')) return a*k.USD;
+  if(item.tur.endsWith('eur')) return a*k.EUR;
+  if(item.tur.endsWith('altin')) return a*k.ALTIN_GR;
+  return a;
+}
+
+function borcTotalTL(){return state.borclar.reduce((s,i)=>s+borcToTL(i),0);}
+
+function renderBorclar(){
+  const total = borcTotalTL();
+  document.getElementById('borclar-bar').innerHTML = `
+    <div class="debt-bar-label">Toplam Borç (TL Karşılığı)</div>
+    <div class="debt-bar-value">${fmtTL(total)}</div>
+  `;
+
+  const cont = document.getElementById('borclar-content');
+  if(state.borclar.length===0){
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Kayıtlı borç yok</div></div>`;
+    return;
+  }
+
+  const groups = {sahsi:[], banka:[], kk:[]};
+  state.borclar.forEach(b=>{
+    if(b.tur.startsWith('sahsi')) groups.sahsi.push(b);
+    else if(b.tur.startsWith('banka')) groups.banka.push(b);
+    else groups.kk.push(b);
+  });
+
+  const gl = {sahsi:'👤 Şahsi Borç', banka:'🏦 Banka Borcu', kk:'💳 Kredi Kartı'};
+  cont.innerHTML = Object.entries(groups).map(([key,items])=>{
+    if(!items.length) return '';
+    return `<div class="portfolio-section">
+      <div class="portfolio-title">${gl[key]}</div>
+      ${items.map(b=>{
+        const tl = borcToTL(b);
+        const unit = b.tur.endsWith('usd')?'USD':b.tur.endsWith('eur')?'EUR':b.tur.endsWith('altin')?'gr Altın':'₺';
+        return `<div class="portfolio-item" onclick="openBorcEdit('${b.id}')">
+          <div class="pi-left">
+            <div class="pi-name">${b.ad||BORC_LABELS[b.tur]}</div>
+            <div class="pi-miktar">${fmt(b.tutar)} ${unit}${b.vade?` · Vade: ${b.vade}`:''}</div>
+          </div>
+          <div class="pi-right">
+            <div class="pi-tl" style="color:var(--red);">${fmtTL(tl)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function openBorcModal(){
+  editingBorc = null;
+  document.getElementById('borc-modal-title').textContent = 'Borç Ekle';
+  document.getElementById('borc-tur').value = 'sahsi_tl';
+  document.getElementById('borc-ad').value = '';
+  document.getElementById('borc-tutar').value = '';
+  document.getElementById('borc-vade').value = '';
+  document.getElementById('borc-del-btn').style.display = 'none';
+  openModal('borc-modal');
+}
+
+function openBorcEdit(id){
+  const item = state.borclar.find(i=>i.id===id);
+  if(!item) return;
+  editingBorc = id;
+  document.getElementById('borc-modal-title').textContent = 'Borç Düzenle';
+  document.getElementById('borc-tur').value = item.tur;
+  document.getElementById('borc-ad').value = item.ad||'';
+  document.getElementById('borc-tutar').value = item.tutar||'';
+  document.getElementById('borc-vade').value = item.vade||'';
+  document.getElementById('borc-del-btn').style.display = 'block';
+  openModal('borc-modal');
+}
+
+function saveBorcItem(){
+  const tur = document.getElementById('borc-tur').value;
+  const ad = document.getElementById('borc-ad').value.trim();
+  const tutar = parseFloat(document.getElementById('borc-tutar').value)||0;
+  const vade = document.getElementById('borc-vade').value.trim();
+  if(editingBorc){
+    const item = state.borclar.find(i=>i.id===editingBorc);
+    if(item) Object.assign(item,{tur,ad,tutar,vade});
+  } else {
+    state.borclar.push({id:uid(),tur,ad,tutar,vade});
+  }
+  saveState();
+  closeModal('borc-modal');
+  renderBorclar();
+}
+
+function deleteBorcItem(){
+  state.borclar = state.borclar.filter(i=>i.id!==editingBorc);
+  saveState();
+  closeModal('borc-modal');
+  renderBorclar();
+}
+
+/* ===========================
+   KURLAR
+=========================== */
+const KUR_DEFS = [
+  {key:'USD',label:'Dolar (USD)',icon:'$'},
+  {key:'EUR',label:'Euro (EUR)',icon:'€'},
+];
+const ALTIN_DEFS = [
+  {key:'ALTIN_GR',label:'Gram Altın'},
+  {key:'ALTIN_CEYREK',label:'Çeyrek Altın'},
+  {key:'ALTIN_YARIM',label:'Yarım Altın'},
+  {key:'ALTIN_TAM',label:'Tam Altın'},
+];
+const DIGER_KUR_DEFS = [
+  {key:'GUMUS',label:'Gümüş (gr)'},
+  {key:'PLATIN',label:'Platin (gr)'},
+];
+
+function renderKurlar(){
+  renderKurGrid('kur-grid', KUR_DEFS);
+  renderKurGrid('altin-grid', ALTIN_DEFS);
+  renderKurGrid('diger-kur-grid', DIGER_KUR_DEFS);
+  const ua = document.getElementById('kur-updated-at');
+  if(state.kurlar.updatedAt){
+    ua.textContent = 'Son güncelleme: '+new Date(state.kurlar.updatedAt).toLocaleString('tr-TR');
+  }
+}
+
+function renderKurGrid(id, defs){
+  const el = document.getElementById(id);
+  el.innerHTML = defs.map(def=>`
+    <div class="kur-card">
+      <div class="kur-header">
+        <div class="kur-name">${def.label}</div>
+        <button class="kur-edit" onclick="openKurModal('${def.key}','${def.label}')">✎</button>
+      </div>
+      <div class="kur-value">${fmt(state.kurlar[def.key])} ₺</div>
+    </div>
+  `).join('');
+}
+
+function openKurModal(key, label){
+  editingKurKey = key;
+  document.getElementById('kur-modal-title').textContent = label;
+  document.getElementById('kur-modal-label').textContent = `${label} (₺)`;
+  document.getElementById('kur-modal-val').value = state.kurlar[key]||'';
+  openModal('kur-modal');
+}
+
+function saveKur(){
+  const val = parseFloat(document.getElementById('kur-modal-val').value);
+  if(!isNaN(val) && val>0){
+    state.kurlar[editingKurKey] = val;
+    state.kurlar.updatedAt = new Date().toISOString();
+    saveState();
+    closeModal('kur-modal');
+    renderKurlar();
+    showToast('Kur güncellendi');
+  }
+}
+
+/* ===========================
+   ZEKAT
+=========================== */
+function zekatHesapla(){
+  const gramAltin = state.kurlar.ALTIN_GR||0;
+  const nisab = 80.18 * gramAltin;
+  const totalVarlik = state.portfolyo.reduce((s,i)=>s+pfToTL(i),0);
+  const malvarlikTotal = state.malvarlik.reduce((s,i)=>s+(i.rayic||0)*(i.payMevcut||100)/100,0);
+  const borcTotal = borcTotalTL();
+  const netVarlik = totalVarlik + malvarlikTotal - borcTotal;
+  const zekatBorclu = netVarlik > nisab ? netVarlik * 0.025 : 0;
+  return {nisab, totalVarlik, malvarlikTotal, borcTotal, netVarlik, zekatBorclu};
+}
+
+function renderZekat(){
+  renderZekatHesap();
+  renderZekatOdemeler();
+}
+
+function renderZekatHesap(){
+  const {nisab,totalVarlik,malvarlikTotal,borcTotal,netVarlik,zekatBorclu} = zekatHesapla();
+  const above = netVarlik > nisab;
+
+  document.getElementById('zekat-status-box').innerHTML = `
+    <div class="zekat-status ${above?'above':'below'}">
+      <div class="zekat-status-title">${above?'🌙 Zekat Yükümlüsüsünüz':'✅ Nisab Altındasınız'}</div>
+      <div class="zekat-status-sub">${above?`Net varlığınız nisabın üzerinde. Bu yıl ${fmtTL(zekatBorclu)} zekat borcunuz var.`:`Net varlığınız (${fmtTL(netVarlik)}) nisab değerinin (${fmtTL(nisab)}) altında.`}</div>
+    </div>
+  `;
+
+  document.getElementById('zekat-calc-rows').innerHTML = `
+    <div class="zekat-row">
+      <div class="zekat-key">Gram Altın Fiyatı</div>
+      <div class="zekat-val">${fmtTL(state.kurlar.ALTIN_GR)}</div>
+    </div>
+    <div class="zekat-row">
+      <div class="zekat-key">Nisab (80,18 gr × altın)</div>
+      <div class="zekat-val" style="color:var(--gold);">${fmtTL(nisab)}</div>
+    </div>
+    <div class="zekat-row">
+      <div class="zekat-key">Portföy Varlıkları</div>
+      <div class="zekat-val">${fmtTL(totalVarlik)}</div>
+    </div>
+    <div class="zekat-row">
+      <div class="zekat-key">Mal Varlığı (Payım)</div>
+      <div class="zekat-val">${fmtTL(malvarlikTotal)}</div>
+    </div>
+    <div class="zekat-row">
+      <div class="zekat-key">Toplam Borç</div>
+      <div class="zekat-val" style="color:var(--red);">-${fmtTL(borcTotal)}</div>
+    </div>
+    <div class="zekat-row">
+      <div class="zekat-key" style="font-weight:700;color:var(--text);">Net Varlık</div>
+      <div class="zekat-val" style="font-size:16px;">${fmtTL(netVarlik)}</div>
+    </div>
+    ${above?`<div class="zekat-row">
+      <div class="zekat-key" style="font-weight:700;color:var(--gold);">Zekat Borcu (%2,5)</div>
+      <div class="zekat-val" style="color:var(--gold);font-size:16px;">${fmtTL(zekatBorclu)}</div>
+    </div>`:''}
+  `;
+}
+
+function renderZekatOdemeler(){
+  const {zekatBorclu} = zekatHesapla();
+  const odemeler = state.zekatOdemeler;
+  const cont = document.getElementById('zekat-odeme-list');
+
+  if(odemeler.length===0){
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">🌙</div><div class="empty-text">Henüz ödeme eklenmedi</div></div>`;
+  } else {
+    cont.innerHTML = odemeler.sort((a,b)=>new Date(b.tarih)-new Date(a.tarih)).map(o=>{
+      const tl = o.paraBirimi==='TL' ? o.tutar : o.tutar*(o.kurAtZaman||0);
+      return `<div class="payment-item">
+        <div class="payment-item-left">
+          <div class="payment-item-name">${o.alici}</div>
+          <div class="payment-item-meta">${o.yil} · ${o.tarih||''} ${o.paraBirimi!=='TL'?`· ${fmt(o.tutar)} ${o.paraBirimi} @ ${fmt(o.kurAtZaman)} ₺`:''}</div>
+        </div>
+        <div class="payment-item-amount">${fmtTL(tl)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const toplamOdenen = odemeler.reduce((s,o)=>{
+    return s+(o.paraBirimi==='TL' ? o.tutar : o.tutar*(o.kurAtZaman||0));
+  },0);
+  const kalan = Math.max(0, zekatBorclu - toplamOdenen);
+
+  document.getElementById('zekat-ozet-rows').innerHTML = `
+    <div class="section-card">
+      <div class="section-body" style="padding:12px 16px;">
+        <div class="zekat-row">
+          <div class="zekat-key">Bu Yıl Zekat Borcu</div>
+          <div class="zekat-val" style="color:var(--gold);">${fmtTL(zekatBorclu)}</div>
+        </div>
+        <div class="zekat-row">
+          <div class="zekat-key">Ödenen Toplam</div>
+          <div class="zekat-val" style="color:var(--green);">${fmtTL(toplamOdenen)}</div>
+        </div>
+        <div class="zekat-row">
+          <div class="zekat-key" style="font-weight:700;">Kalan Zekat</div>
+          <div class="zekat-val" style="color:${kalan>0?'var(--red)':'var(--green)'};font-size:16px;">${fmtTL(kalan)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function switchZekatTab(tab){
+  zekatTab = tab;
+  document.querySelectorAll('#page-zekat .tab-btn').forEach(b=>{
+    b.classList.toggle('active',(b.textContent==='Hesap'&&tab==='hesap')||(b.textContent==='Ödemeler'&&tab==='odemeler'));
+  });
+  document.getElementById('zekat-hesap-tab').classList.toggle('active',tab==='hesap');
+  document.getElementById('zekat-odemeler-tab').classList.toggle('active',tab==='odemeler');
+}
+
+function openZekatOdemeModal(){
+  document.getElementById('zo-alici').value = '';
+  document.getElementById('zo-tutar').value = '';
+  document.getElementById('zo-para').value = 'TL';
+  document.getElementById('zo-kur').value = '';
+  document.getElementById('zo-yil').value = new Date().getFullYear();
+  document.getElementById('zo-tarih').value = new Date().toISOString().slice(0,10);
+  onZekatParaChange();
+  openModal('zekat-odeme-modal');
+}
+
+function onZekatParaChange(){
+  const para = document.getElementById('zo-para').value;
+  const kurRow = document.getElementById('zo-kur-row');
+  kurRow.style.display = para!=='TL'?'block':'none';
+  if(para==='USD') document.getElementById('zo-kur').value = state.kurlar.USD||'';
+  if(para==='EUR') document.getElementById('zo-kur').value = state.kurlar.EUR||'';
+}
+
+function saveZekatOdeme(){
+  const alici = document.getElementById('zo-alici').value.trim();
+  const tutar = parseFloat(document.getElementById('zo-tutar').value)||0;
+  const paraBirimi = document.getElementById('zo-para').value;
+  const kurAtZaman = parseFloat(document.getElementById('zo-kur').value)||null;
+  const yil = parseInt(document.getElementById('zo-yil').value)||new Date().getFullYear();
+  const tarih = document.getElementById('zo-tarih').value;
+  if(!alici||!tutar){showToast('Alıcı ve tutar zorunlu');return;}
+  state.zekatOdemeler.push({id:uid(),alici,tutar,paraBirimi,kurAtZaman,yil,tarih});
+  saveState();
+  closeModal('zekat-odeme-modal');
+  renderZekat();
+}
+
+/* ===========================
+   MAL VARLIĞI
+=========================== */
+function renderMalvarlik(){
+  const items = state.malvarlik;
+  const total = items.reduce((s,i)=>{
+    return s+(i.rayic||0)*(i.payMevcut||100)/100;
+  },0);
+  document.getElementById('malvarlik-toplam').textContent = fmtTL(total);
+
+  const cont = document.getElementById('malvarlik-list');
+  cont.innerHTML = items.map(item=>{
+    const alisdaPay = (item.alis||0)*(item.payAlis||100)/100;
+    const mevcutPay = (item.rayic||0)*(item.payMevcut||100)/100;
+    const kar = mevcutPay - alisdaPay;
+    const karPct = alisdaPay>0?((kar/alisdaPay)*100).toFixed(1):null;
+    return `<div class="asset-row" onclick="openMalvarlikEdit('${item.id}')">
+      <div class="asset-name">${item.ad}</div>
+      <div class="asset-grid">
+        <div class="asset-kv">Alış Fiyatı<span>${item.alis?fmtTL(item.alis):'—'}</span></div>
+        <div class="asset-kv">Tarih<span>${item.tarih||'—'}</span></div>
+        <div class="asset-kv">Payım/Alış<span>${item.payAlis||100}% · ${alisdaPay?fmtTL(alisdaPay):'—'}</span></div>
+        <div class="asset-kv">Payım/Mevcut<span>${item.payMevcut||100}% · ${mevcutPay?fmtTL(mevcutPay):'—'}</span></div>
+        <div class="asset-kv">Mevcut Rayiç<span>${item.rayic?fmtTL(item.rayic):'—'}</span></div>
+      </div>
+      ${alisdaPay&&mevcutPay?`<div class="asset-gain ${kar>=0?'pos':'neg'}">${kar>=0?'▲':'▼'} ${fmtTL(Math.abs(kar))} (${karPct}%)</div>`:''}
+    </div>`;
+  }).join('');
+
+  if(!items.length){
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">🏠</div><div class="empty-text">Henüz varlık eklenmedi</div></div>`;
+  }
+}
+
+function openMalvarlikModal(){
+  editingMalvarlik = null;
+  document.getElementById('mv-modal-title').textContent = 'Varlık Ekle';
+  document.getElementById('mv-ad').value = '';
+  document.getElementById('mv-alis').value = '';
+  document.getElementById('mv-tarih').value = '';
+  document.getElementById('mv-pay-alis').value = '100';
+  document.getElementById('mv-rayic').value = '';
+  document.getElementById('mv-pay-mevcut').value = '100';
+  document.getElementById('mv-del-btn').style.display = 'none';
+  openModal('malvarlik-modal');
+}
+
+function openMalvarlikEdit(id){
+  const item = state.malvarlik.find(i=>i.id===id);
+  if(!item) return;
+  editingMalvarlik = id;
+  document.getElementById('mv-modal-title').textContent = item.ad;
+  document.getElementById('mv-ad').value = item.ad||'';
+  document.getElementById('mv-alis').value = item.alis||'';
+  document.getElementById('mv-tarih').value = item.tarih||'';
+  document.getElementById('mv-pay-alis').value = item.payAlis!=null?item.payAlis:100;
+  document.getElementById('mv-rayic').value = item.rayic||'';
+  document.getElementById('mv-pay-mevcut').value = item.payMevcut!=null?item.payMevcut:100;
+  document.getElementById('mv-del-btn').style.display = 'block';
+  openModal('malvarlik-modal');
+}
+
+function saveMalvarlikItem(){
+  const ad = document.getElementById('mv-ad').value.trim();
+  const alis = parseFloat(document.getElementById('mv-alis').value)||0;
+  const tarih = document.getElementById('mv-tarih').value.trim();
+  const payAlis = parseFloat(document.getElementById('mv-pay-alis').value)||100;
+  const rayic = parseFloat(document.getElementById('mv-rayic').value)||0;
+  const payMevcut = parseFloat(document.getElementById('mv-pay-mevcut').value)||100;
+  if(!ad){showToast('Ad boş olamaz');return;}
+  if(editingMalvarlik){
+    const item = state.malvarlik.find(i=>i.id===editingMalvarlik);
+    if(item) Object.assign(item,{ad,alis,tarih,payAlis,rayic,payMevcut});
+  } else {
+    state.malvarlik.push({id:uid(),ad,alis,tarih,payAlis,rayic,payMevcut});
+  }
+  saveState();
+  closeModal('malvarlik-modal');
+  renderMalvarlik();
+}
+
+function deleteMalvarlikItem(){
+  state.malvarlik = state.malvarlik.filter(i=>i.id!==editingMalvarlik);
+  saveState();
+  closeModal('malvarlik-modal');
+  renderMalvarlik();
+}
+
+/* ===========================
+   MODAL HELPERS
+=========================== */
+function openModal(id){
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(id){
+  document.getElementById(id).classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',e=>{
+    if(e.target===overlay) closeModal(overlay.id);
+  });
+});
+
+/* ===========================
+   INIT
+=========================== */
+loadState();
+renderAylik();
+</script>
+</body>
+</html>
