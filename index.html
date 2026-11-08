@@ -446,8 +446,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="ozet" onclick="switchAylikTab('ozet')">Özet</button>
     <button class="tab-btn" data-tab="gelir" onclick="switchAylikTab('gelir')">Gelirler</button>
-    <button class="tab-btn" data-tab="sabit" onclick="switchAylikTab('sabit')">Sabit Giderler</button>
-    <button class="tab-btn" data-tab="degisken" onclick="switchAylikTab('degisken')">Değişken</button>
+    <button class="tab-btn" data-tab="gider" onclick="switchAylikTab('gider')">Giderler</button>
     <button class="tab-btn" data-tab="karsilastir" onclick="switchAylikTab('karsilastir')">Karşılaştır</button>
     <button class="tab-btn" data-tab="yillik" onclick="switchAylikTab('yillik')">Yıllık</button>
   </div>
@@ -464,8 +463,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <div class="summary-bar" id="aylik-summary"></div>
       <div id="ozet-grafik"></div>
       <div id="ozet-gelir-sec"></div>
-      <div id="ozet-sabit-sec"></div>
-      <div id="ozet-degisken-sec"></div>
+      <div id="ozet-gider-sec"></div>
     </div>
 
     <!-- Gelir Tab -->
@@ -477,17 +475,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       </div>
     </div>
 
-    <!-- Sabit Tab -->
-    <div id="tab-sabit" class="tab-content">
-      <div id="sabit-list"></div>
-    </div>
-
-    <!-- Değişken Tab -->
-    <div id="tab-degisken" class="tab-content">
-      <div id="degisken-list"></div>
-      <div class="empty" id="degisken-empty" style="display:none;">
-        <div class="empty-icon">🛍</div>
-        <div class="empty-text">Bu ay değişken gider yok</div>
+    <!-- Gider Tab -->
+    <div id="tab-gider" class="tab-content">
+      <div id="gider-list"></div>
+      <div class="empty" id="gider-empty" style="display:none;">
+        <div class="empty-icon">🧾</div>
+        <div class="empty-text">Bu ay gider yok</div>
       </div>
     </div>
 
@@ -642,8 +635,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <label class="form-label">Tür</label>
       <select class="form-select" id="modal-tur" onchange="onTurChange()">
         <option value="gelir">Gelir</option>
-        <option value="sabit">Sabit Gider</option>
-        <option value="degisken">Değişken Gider</option>
+        <option value="gider">Gider</option>
       </select>
     </div>
     <div class="form-group">
@@ -653,15 +645,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
     <!-- Ödeme Modu Seçici -->
     <div class="form-group">
-      <label class="form-label">Ödeme Modu</label>
-      <div id="modal-mod-btns" style="display:flex;gap:6px;">
-        <button type="button" class="mod-btn active" id="mod-btn-tekrar" onclick="setMod('tekrar')">🔁 Tekrarlayan</button>
+      <label class="form-label">Sıklık</label>
+      <div id="modal-mod-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
         <button type="button" class="mod-btn" id="mod-btn-teksefer" onclick="setMod('teksefer')">📅 Tek Seferlik</button>
-        <button type="button" class="mod-btn" id="mod-btn-manuel" onclick="setMod('manuel')">📋 Çoklu Ay</button>
+        <button type="button" class="mod-btn active" id="mod-btn-tekrar" onclick="setMod('tekrar')">🔁 Her Ay Sabit</button>
+        <button type="button" class="mod-btn" id="mod-btn-aylik" onclick="setMod('aylik')">✏️ Her Ay Değişken</button>
+        <button type="button" class="mod-btn" id="mod-btn-takvim" onclick="setMod('takvim')">🗓 Ödeme Takvimi</button>
       </div>
+      <div class="hint" id="modal-mod-hint" style="margin-top:8px;"></div>
     </div>
 
-    <!-- TEKRARLAYAN alanları -->
+    <!-- TEKRARLAYAN alanları (Her Ay Sabit + Her Ay Değişken) -->
     <div id="modal-section-tekrar">
       <div class="form-group">
         <label class="form-label">Başlangıç Tarihi</label>
@@ -685,11 +679,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       </div>
     </div>
 
-    <!-- ÇOKLU AY alanları -->
-    <div id="modal-section-manuel" style="display:none;">
-      <div style="background:var(--card2);border-radius:8px;padding:10px;font-size:13px;color:var(--text2);margin-bottom:10px;">
-        Her satır için ayrı tarih ve tutar gir. Hepsi tek seferde kaydedilir.
-      </div>
+    <!-- ÖDEME TAKVİMİ alanları -->
+    <div id="modal-section-takvim" style="display:none;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">Para Birimi</span>
         <select class="form-select" id="modal-coklu-para" style="flex:1;">
@@ -711,7 +702,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <!-- TUTAR (tekrar ve teksefer modlarında) -->
     <div id="modal-tutar-row">
       <div class="form-group">
-        <label class="form-label">Tutar</label>
+        <label class="form-label" id="modal-tutar-label">Tutar</label>
         <div style="display:flex;gap:8px;">
           <input type="number" class="form-input" id="modal-tutar" placeholder="0" style="flex:1;" oninput="updateTLPreview()">
           <select class="form-select" id="modal-para" style="width:100px;" onchange="updateTLPreview()">
@@ -975,7 +966,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div class="section-card" style="background:var(--card2);margin-bottom:0;">
       <div style="padding:12px 14px 4px;font-size:13px;font-weight:700;">📊 Aylık Gidere Bağla (taksit)</div>
       <div style="padding:0 14px 12px;">
-        <div class="hint" style="margin-bottom:10px;">Taksit tutarı girerseniz Aylık Gelir/Gider'e tekrarlayan sabit gider olarak eklenir. Her ay ✓ işaretlediğinizde bu borç otomatik azalır.</div>
+        <div class="hint" style="margin-bottom:10px;">Taksit tutarı girerseniz Aylık Gelir/Gider'e "Her Ay Sabit" gider olarak eklenir. Her ay ✓ işaretlediğinizde bu borç otomatik azalır.</div>
         <div class="form-row">
           <div class="form-group"><label class="form-label">Aylık Taksit</label><input type="number" class="form-input" id="borc-taksit" step="any" placeholder="Boş = bağlama" oninput="onBorcTaksitInput()"></div>
           <div class="form-group"><label class="form-label">Taksit Sayısı</label><input type="number" class="form-input" id="borc-taksit-sayi" min="1" placeholder="Otomatik"></div>
@@ -1226,7 +1217,7 @@ async function syncFromSheets(){
       mergeRecurring(remoteRec);
       seedDefaultsIfEmpty();
       migrateRecurringFromAylik();
-      const tasinan = migrateStoredTekrar();
+      const tasinan = migrateStoredTekrar() + migrateGiderBirlesik();
       migrateMalvarlik();
       migrateHesaplar();
       state.recurring = recurringItems;
@@ -1397,6 +1388,7 @@ function loadLocalState(){
   // Migrate: extract grupId-based recurring items from old aylikData into recurringItems
   migrateRecurringFromAylik();
   migrateStoredTekrar();
+  migrateGiderBirlesik();
   // Migrate malvarlik to new multi-tranche structure
   migrateMalvarlik();
   migrateHesaplar();
@@ -1423,7 +1415,7 @@ function seedDefaultsIfEmpty(){
     if(i.mod==='tekrar'){
       recurringItems.push({
         grupId: 'g'+uid(), name:i.name, amount:i.amount, currency:i.currency||'TL',
-        tur:'sabit', mod:'tekrar', basTarih, sure:null, odemeTarih:i.odemeTarih||1
+        tur:'gider', mod:'tekrar', basTarih, sure:null, odemeTarih:i.odemeTarih||1
       });
     }
   });
@@ -1436,7 +1428,7 @@ function migrateRecurringFromAylik(){
   // Deduplicate by grupId — take the first occurrence (lowest taksitNo)
   const seen = new Set(recurringItems.map(r=>r.grupId));
   Object.keys(aylikData).sort().forEach(key=>{
-    ['gelir','sabit','degisken'].forEach(tur=>{
+    ['gelir','gider','sabit','degisken'].forEach(tur=>{
       (aylikData[key][tur]||[]).forEach(i=>{
         if(i.grupId && !seen.has(i.grupId) && i.mod==='tekrar'){
           seen.add(i.grupId);
@@ -1461,7 +1453,7 @@ function migrateRecurringFromAylik(){
   const recurringGrupIds = new Set(recurringItems.map(r=>r.grupId));
   Object.keys(aylikData).forEach(key=>{
     if(!aylikData[key].paidMap) aylikData[key].paidMap = {};
-    ['gelir','sabit','degisken'].forEach(tur=>{
+    ['gelir','gider','sabit','degisken'].forEach(tur=>{
       if(!aylikData[key][tur]) return;
       const keep = [];
       aylikData[key][tur].forEach(i=>{
@@ -1481,7 +1473,7 @@ function migrateRecurringFromAylik(){
   // Remove entirely empty month keys (no items and no paidMap)
   Object.keys(aylikData).forEach(key=>{
     const d = aylikData[key];
-    if((!d.gelir||!d.gelir.length) && (!d.sabit||!d.sabit.length) && (!d.degisken||!d.degisken.length) && !d.paidMap){
+    if((!d.gelir||!d.gelir.length) && (!d.gider||!d.gider.length) && (!d.sabit||!d.sabit.length) && (!d.degisken||!d.degisken.length) && !d.paidMap){
       delete aylikData[key];
     }
   });
@@ -1529,166 +1521,133 @@ function goHome(){
 =========================== */
 function getMonthKey(y,m){return `${y}-${String(m).padStart(2,'0')}`;}
 
+// Giderler tek listede (tur:'gider'). Eski 'sabit'/'degisken' verileri migrateGiderBirlesik ile taşınır.
+const GIDER_TURLERI = ['gelir','gider'];
+function bosAy(){ return {gelir:[],gider:[],paidMap:{}}; }
+
 function getMonthData(y,m){
   const key = getMonthKey(y,m);
-  if(!aylikData[key]){
-    // Carry from previous month
-    const pm = m===1?12:m-1;
-    const py = m===1?y-1:y;
-    const prevKey = getMonthKey(py,pm);
-    if(aylikData[prevKey]){
-      const prev = aylikData[prevKey];
-      function carryItems(list){
-        return list.filter(i=>{
-          const mod = i.mod || (i.recurring===false?'manuel':'tekrar');
-          // teksefer ve manuel taşınmaz
-          if(mod==='teksefer' || mod==='manuel') return false;
-          if(i.recurring===false) return false;
-          // grupId olanlar zaten tüm aylara yazıldı, tekrar taşıma
-          if(i.grupId) return false;
-          return true;
-        }).map(i=>{
-          const ni = {...i, id:uid(), paid:false};
-          if(ni.kalanTaksit!=null && ni.kalanTaksit>0) ni.kalanTaksit--;
-          return ni;
-        }).filter(i=>i.kalanTaksit==null||i.kalanTaksit>0||i.taksit==null);
-      }
-      aylikData[key] = {
-        gelir: carryItems(prev.gelir),
-        sabit: carryItems(prev.sabit),
-        degisken: []
-      };
-    } else {
-      aylikData[key] = {
-        gelir: JSON.parse(JSON.stringify(DEFAULT_GELIR)),
-        sabit: JSON.parse(JSON.stringify(DEFAULT_SABIT)),
-        degisken: JSON.parse(JSON.stringify(DEFAULT_DEGISKEN))
-      };
-    }
-    saveAylik();
-  }
-  // Ensure paid field
-  ['gelir','sabit','degisken'].forEach(tur=>{
-    (aylikData[key][tur]||[]).forEach(i=>{if(i.paid===undefined)i.paid=false;});
+  if(!aylikData[key]) aylikData[key] = bosAy();
+  GIDER_TURLERI.forEach(tur=>{
+    if(!aylikData[key][tur]) aylikData[key][tur]=[];
+    aylikData[key][tur].forEach(i=>{if(i.paid===undefined)i.paid=false;});
   });
   return aylikData[key];
 }
 
 function saveCurrentMonth(){
-  const key = getMonthKey(curYear, curMonth);
-  aylikData[key] = getMonthData(curYear,curMonth);
+  getMonthData(curYear,curMonth);
   saveAylik();
 }
+
+// Eski veri: sabit + degisken → gider (tekrar tekrar çalışsa da güvenli)
+function migrateGiderBirlesik(){
+  let n = 0;
+  recurringItems.forEach(r=>{ if(r.tur==='sabit' || r.tur==='degisken'){ r.tur='gider'; n++; } });
+  Object.keys(aylikData).forEach(k=>{
+    const d = aylikData[k]; if(!d) return;
+    if(d.sabit || d.degisken){
+      d.gider = [...(d.gider||[]), ...(d.sabit||[]), ...(d.degisken||[])];
+      delete d.sabit; delete d.degisken; n++;
+    }
+  });
+  return n;
+}
+
+// "Her Ay Sabit": son girilen tutar sonraki aylara yansır. "Her Ay Değişken": her ay ayrı girilir.
+function sablonTutar(ri, key){
+  const t = ri.tutarlar || {};
+  if(ri.mod==='aylik') return {amount: t[key]!=null ? t[key] : 0, girilmedi: t[key]==null};
+  let best = null;
+  Object.keys(t).forEach(k=>{ if(k<=key && (best===null || k>best)) best = k; });
+  return {amount: best!==null ? t[best] : ri.amount, girilmedi:false};
+}
+function sablonBul(gid){ return recurringItems.find(r=>r.grupId===gid); }
 
 // Verilen ay için stored data + recurringItems'tan dinamik oluşturulan kalemleri birleştir
 function getEffectiveMonthData(y,m){
   const key = getMonthKey(y,m);
-  // Stored (manuel, teksefer, ödendi işaretleri)
-  const stored = aylikData[key] || {gelir:[],sabit:[],degisken:[],paidMap:{}};
+  const stored = aylikData[key] || bosAy();
   const paidMap = stored.paidMap || {};
   const excludedMap = stored.excludedMap || {};
-
-  // Build effective lists
   const eff = {
     gelir: [...(stored.gelir||[])],
-    sabit: [...(stored.sabit||[])],
-    degisken: [...(stored.degisken||[])]
+    gider: [...(stored.gider||[]), ...(stored.sabit||[]), ...(stored.degisken||[])]
   };
-
-  // Inject entries from recurringItems for this month
   const alreadyGrupIds = new Set();
-  ['gelir','sabit','degisken'].forEach(tur=>{
-    eff[tur].forEach(i=>{ if(i.grupId) alreadyGrupIds.add(i.grupId); });
-  });
+  GIDER_TURLERI.forEach(tur=> eff[tur].forEach(i=>{ if(i.grupId) alreadyGrupIds.add(i.grupId); }));
+  const turOf = ri => ri.tur==='gelir' ? 'gelir' : 'gider';
+  const ortak = ri => ({grupId:ri.grupId, name:ri.name, cat:ri.cat, currency:ri.currency||'TL',
+    pfKalemId:ri.pfKalemId||null, borcId:ri.borcId||null, _dynamic:true});
 
   recurringItems.forEach(ri=>{
-    if(alreadyGrupIds.has(ri.grupId)) return; // already in stored data
-    if(excludedMap[ri.grupId]) return; // explicitly excluded for this month
+    if(alreadyGrupIds.has(ri.grupId)) return;
+    if(excludedMap[ri.grupId]) return;
+    const tur = turOf(ri);
 
-    if(ri.mod==='tekrar'){
-      // Check if this month falls within the recurring range
+    if(ri.mod==='tekrar' || ri.mod==='aylik'){
       const [sy,sm_] = (ri.basTarih||'').split('-').map(Number);
       if(!sy) return;
       const monthOffset = (y - sy)*12 + (m - sm_);
       const toplamAy = ri.sure || 999;
       if(monthOffset < 0 || monthOffset >= toplamAy) return;
-      const tur = ri.tur||'sabit';
-      // Determine payment day for this month
       const gun = ri.odemeTarih || 1;
-      const tarih = `${y}-${String(m).padStart(2,'0')}-${String(gun).padStart(2,'0')}`;
-      eff[tur].push({
+      const st = sablonTutar(ri, key);
+      eff[tur].push({...ortak(ri),
         id: ri.grupId+'_'+key,
-        grupId: ri.grupId,
-        name: ri.name,
-        cat: ri.cat,
-        amount: ri.amount,
-        currency: ri.currency||'TL',
-        mod: 'tekrar',
-        recurring: true,
-        basTarih: ri.basTarih,
-        sure: ri.sure,
-        odemeTarih: ri.odemeTarih,
-        pfKalemId: ri.pfKalemId||null,
-        borcId: ri.borcId||null,
+        amount: st.amount, tutarGirilmedi: st.girilmedi,
+        mod: ri.mod, recurring: true,
+        basTarih: ri.basTarih, sure: ri.sure, odemeTarih: ri.odemeTarih,
         taksitNo: monthOffset+1,
         taksit: ri.sure!=null ? toplamAy : null,
         kalanTaksit: ri.sure!=null ? toplamAy - monthOffset : null,
-        tarih,
-        paid: paidMap[ri.grupId]||false,
-        _dynamic: true // flag: not stored in aylikData
+        tarih: `${y}-${String(m).padStart(2,'0')}-${String(gun).padStart(2,'0')}`,
+        paid: paidMap[ri.grupId]||false
       });
     } else if(ri.mod==='teksefer'){
-      // Check if date falls in this month
       if(!ri.tarih) return;
       const [ty,tm] = ri.tarih.split('-').map(Number);
       if(ty!==y || tm!==m) return;
-      const tur = ri.tur||'gelir';
-      eff[tur].push({
-        id: ri.grupId+'_'+key,
-        grupId: ri.grupId,
-        name: ri.name,
-        cat: ri.cat,
-        amount: ri.amount,
-        currency: ri.currency||'TL',
-        mod: 'teksefer',
-        recurring: false,
-        tarih: ri.tarih,
-        pfKalemId: ri.pfKalemId||null,
-        borcId: ri.borcId||null,
-        paid: paidMap[ri.grupId]||false,
-        _dynamic: true
+      eff[tur].push({...ortak(ri), id: ri.grupId+'_'+key, amount: ri.amount, mod:'teksefer', recurring:false,
+        tarih: ri.tarih, paid: paidMap[ri.grupId]||false});
+    } else if(ri.mod==='takvim'){
+      const satirlar = (ri.takvim||[]).filter(s=>s.tarih && s.tarih.startsWith(key));
+      const toplam = (ri.takvim||[]).length;
+      satirlar.forEach(s=>{
+        const pk = ri.grupId+'@'+s.tarih;
+        const sira = (ri.takvim||[]).slice().sort((a,b)=>a.tarih<b.tarih?-1:1).findIndex(x=>x===s)+1;
+        eff[tur].push({...ortak(ri), id: pk, paidKey: pk, amount: s.tutar, mod:'takvim', recurring:false,
+          tarih: s.tarih, odemeTarih: parseInt(s.tarih.split('-')[2])||null,
+          takvimSira: sira, takvimToplam: toplam, paid: paidMap[pk]||false});
       });
     }
   });
 
-  // Ensure paid field on all
-  ['gelir','sabit','degisken'].forEach(tur=>{
-    eff[tur].forEach(i=>{ if(i.paid===undefined) i.paid=false; });
-  });
-
+  GIDER_TURLERI.forEach(tur=> eff[tur].forEach(i=>{ if(i.paid===undefined) i.paid=false; }));
   return eff;
 }
 
 // Toggle paid state — works for both stored and dynamic items.
-// ✓ işaretlenince bağlı portföy kalemi / borç güncellenir, kaldırılınca geri alınır.
 function togglePaidState(tur, idx, y, m){
   y = y||curYear; m = m||curMonth;
+  if(tur!=='gelir') tur = 'gider';
   const eff = getEffectiveMonthData(y,m);
   const item = eff[tur][idx];
   if(!item) return;
   const key = getMonthKey(y,m);
-  if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[],paidMap:{}};
+  if(!aylikData[key]) aylikData[key]=bosAy();
   if(!aylikData[key].paidMap) aylikData[key].paidMap={};
   let yeni;
+  const pk = item.paidKey || item.grupId;
   if(item._dynamic){
-    yeni = !(aylikData[key].paidMap[item.grupId]||false);
-    if(yeni) aylikData[key].paidMap[item.grupId] = true; else delete aylikData[key].paidMap[item.grupId];
+    yeni = !(aylikData[key].paidMap[pk]||false);
+    if(yeni) aylikData[key].paidMap[pk] = true; else delete aylikData[key].paidMap[pk];
   } else {
-    const storedList = aylikData[key][tur];
-    const si = storedList ? storedList.find(x=>x.id===item.id) : null;
+    const storedList = [...(aylikData[key].gelir||[]), ...(aylikData[key].gider||[])];
+    const si = storedList.find(x=>x.id===item.id);
     if(si){ si.paid = !si.paid; yeni = si.paid; } else { item.paid = !item.paid; yeni = item.paid; }
   }
-  const ref = item.grupId||item.id;
+  const ref = item.paidKey||item.grupId||item.id;
   if(!Array.isArray(state.islemler)) state.islemler=[];
   if(yeni){
     const isl = aylikLinkIslem(item, tur, key);
@@ -1700,51 +1659,37 @@ function togglePaidState(tur, idx, y, m){
 }
 
 /* ===========================
-   AYLИК RENDER
+   AYLIK RENDER
 =========================== */
+const sumTL = list => list.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+
 function renderAylik(){
   document.getElementById('aylik-month-label').textContent = `${MONTHS_TR[curMonth]} ${curYear}`;
   const d = getEffectiveMonthData(curYear,curMonth);
-
-  const gelirTL = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-  const sabitTL = d.sabit.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-  const degTL = d.degisken.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-  const totalGider = sabitTL+degTL;
-  const net = gelirTL-totalGider;
-
+  const gelirTL = sumTL(d.gelir);
+  const giderTL = sumTL(d.gider);
+  const net = gelirTL-giderTL;
   document.getElementById('aylik-summary').innerHTML = `
-    <div>
-      <div class="sum-label">Toplam Gelir</div>
-      <div class="sum-value green">${fmtTL(gelirTL)}</div>
-    </div>
-    <div>
-      <div class="sum-label">Toplam Gider</div>
-      <div class="sum-value red">${fmtTL(totalGider)}</div>
-    </div>
-    <div>
-      <div class="sum-label">Net Durum</div>
-      <div class="sum-value ${net>=0?'green':'red'}">${fmtTL(net)}</div>
-    </div>
+    <div><div class="sum-label">Toplam Gelir</div><div class="sum-value green">${fmtTL(gelirTL)}</div></div>
+    <div><div class="sum-label">Toplam Gider</div><div class="sum-value red">${fmtTL(giderTL)}</div></div>
+    <div><div class="sum-label">Net Durum</div><div class="sum-value ${net>=0?'green':'red'}">${fmtTL(net)}</div></div>
   `;
-
-  if(aylikTab==='ozet') renderOzet(d,gelirTL,sabitTL,degTL);
+  if(aylikTab==='ozet') renderOzet(d,gelirTL,giderTL);
   if(aylikTab==='gelir') renderGelirTab(d);
-  if(aylikTab==='sabit') renderSabitTab(d);
-  if(aylikTab==='degisken') renderDegiskenTab(d);
+  if(aylikTab==='gider') renderGiderTab(d);
   if(aylikTab==='karsilastir') renderKarsilastir();
   if(aylikTab==='yillik') renderYillik();
 }
 
-function renderOzet(d,gelirTL,sabitTL,degTL){
+function renderOzet(d,gelirTL,giderTL){
   renderOzetGrafik(d,gelirTL);
-  renderMiniSection('ozet-gelir-sec','gelir',d.gelir,'Gelirler','💵',gelirTL);
-  renderMiniSection('ozet-sabit-sec','sabit',d.sabit,'Sabit Giderler','📌',sabitTL);
-  renderMiniSection('ozet-degisken-sec','degisken',d.degisken,'Değişken Giderler','🛍',degTL);
+  renderMiniSection('ozet-gelir-sec','gelir',d.gelir,'Gelirler','💵',gelirTL,'Gelir');
+  renderMiniSection('ozet-gider-sec','gider',d.gider,'Giderler','🧾',giderTL,'Gider');
 }
 
-function renderMiniSection(containerId, tur, items, title, icon, total){
+function renderMiniSection(containerId, tur, items, title, icon, total, tekil){
   const cont = document.getElementById(containerId);
-  const nonZero = items.filter(i=>i.amount>0);
+  const goster = items.filter(i=>i.amount>0 || i.tutarGirilmedi);
   cont.innerHTML = `
     <div class="section-card">
       <div class="section-header" onclick="toggleSection(this)">
@@ -1758,51 +1703,52 @@ function renderMiniSection(containerId, tur, items, title, icon, total){
         </div>
       </div>
       <div class="section-body">
-        ${nonZero.map((i,idx)=>itemHTML(tur,i,items.indexOf(i))).join('')}
-        ${nonZero.length===0?`<div style="text-align:center;color:var(--text2);padding:16px;font-size:13px;">Henüz veri yok</div>`:''}
-        <button style="width:100%;margin-top:8px;padding:10px;background:rgba(108,99,255,0.1);border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-size:13px;cursor:pointer;" onclick="openAylikModalFor('${tur}')">+ ${title} Ekle</button>
+        ${goster.map(i=>itemHTML(tur,i,items.indexOf(i))).join('')}
+        ${goster.length===0?`<div style="text-align:center;color:var(--text2);padding:16px;font-size:13px;">Henüz veri yok</div>`:''}
+        <button style="width:100%;margin-top:8px;padding:10px;background:rgba(108,99,255,0.1);border:1px dashed var(--accent);border-radius:10px;color:var(--accent);font-size:13px;cursor:pointer;" onclick="openAylikModalFor('${tur}')">+ ${tekil||title} Ekle</button>
       </div>
     </div>
   `;
 }
 
 function renderGelirTab(d){
-  const el = document.getElementById('gelir-list');
-  el.innerHTML = d.gelir.map((i,idx)=>itemHTML('gelir',i,idx)).join('');
+  document.getElementById('gelir-list').innerHTML = d.gelir.map((i,idx)=>itemHTML('gelir',i,idx)).join('');
   document.getElementById('gelir-empty').style.display = d.gelir.length?'none':'block';
 }
 
-function renderSabitTab(d){
-  const el = document.getElementById('sabit-list');
-  el.innerHTML = d.sabit.map((i,idx)=>itemHTML('sabit',i,idx)).join('');
-}
-
-function renderDegiskenTab(d){
-  const el = document.getElementById('degisken-list');
-  el.innerHTML = d.degisken.map((i,idx)=>itemHTML('degisken',i,idx)).join('');
-  document.getElementById('degisken-empty').style.display = d.degisken.length?'none':'block';
+function renderGiderTab(d){
+  document.getElementById('gider-list').innerHTML = d.gider.map((i,idx)=>itemHTML('gider',i,idx)).join('');
+  document.getElementById('gider-empty').style.display = d.gider.length?'none':'block';
 }
 
 function itemHTML(tur,item,idx){
   const color = CAT_COLORS[item.cat]||'#94a3b8';
   const amountTL = toTL(item.amount, item.currency||'TL');
   const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
-  let meta = '';
+  const parca = [];
+  const gunTxt = item.odemeTarih ? `ayın ${item.odemeTarih}'i` : '';
   if(mod==='teksefer' && item.tarih){
     const [ty,tm,td] = item.tarih.split('-').map(Number);
-    meta = `📅 ${td} ${MONTHS_TR[tm]} ${ty}`;
+    parca.push(`📅 Tek seferlik · ${td} ${MONTHS_TR[tm]} ${ty}`);
+  } else if(mod==='takvim'){
+    const td = item.tarih ? Number(item.tarih.split('-')[2]) : null;
+    parca.push(`🗓 Takvim ${item.takvimSira}/${item.takvimToplam}${td?` · ${td} ${MONTHS_TR[curMonth]}`:''}`);
   } else if(mod==='manuel'){
-    if(item.odemeTarih) meta = `✏️ ${item.odemeTarih}'i (manuel)`;
-    else meta = '✏️ Manuel';
+    parca.push(item.odemeTarih ? `📋 ${item.odemeTarih}'i` : '📋 Tek ay');
+  } else if(mod==='aylik'){
+    parca.push(`✏️ Her ay değişken${gunTxt?' · '+gunTxt:''}`);
   } else {
-    // tekrar
-    if(item.odemeTarih) meta += `🔁 Her ayın ${item.odemeTarih}'i`;
-    if(item.sure!=null) meta += `${meta?' · ':''}${item.kalanTaksit!=null?item.kalanTaksit+'/'+item.taksit+' ay kaldı':''}`;
+    parca.push(`🔁 Her ay sabit${gunTxt?' · '+gunTxt:''}`);
   }
-  if(item.currency && item.currency!=='TL') meta += `${meta?' · ':''}${fmt(item.amount)} ${item.currency}`;
-  if(item.cat && CAT_LABEL[item.cat]) meta += `${meta?' · ':''}${CAT_LABEL[item.cat]}`;
-  if(item.pfKalemId){ const k=kalemBul(item.pfKalemId); if(k) meta += `${meta?' · ':''}${tur==='gelir'?'→':'←'} ${escH(hesapAd(k.hesapId))}`; }
-  if(item.borcId) meta += `${meta?' · ':''}💳 borca bağlı`;
+  if((mod==='tekrar'||mod==='aylik') && item.sure!=null && item.kalanTaksit!=null) parca.push(`${item.kalanTaksit}/${item.taksit} ay kaldı`);
+  if(item.currency && item.currency!=='TL') parca.push(`${fmt(item.amount)} ${item.currency}`);
+  if(item.cat && CAT_LABEL[item.cat]) parca.push(CAT_LABEL[item.cat]);
+  if(item.pfKalemId){ const k=kalemBul(item.pfKalemId); if(k) parca.push(`${tur==='gelir'?'→':'←'} ${escH(hesapAd(k.hesapId))}`); }
+  if(item.borcId) parca.push('💳 borca bağlı');
+  const meta = parca.join(' · ');
+  const tutarHTML = item.tutarGirilmedi
+    ? `<div class="item-amount" style="color:var(--gold);font-size:12px;">Tutar gir</div>`
+    : `<div class="item-amount">${fmtTL(amountTL)}</div>`;
 
   return `<div class="item-row" onclick="openAylikEdit('${tur}',${idx})">
     <div class="item-color" style="background:${color}"></div>
@@ -1811,7 +1757,7 @@ function itemHTML(tur,item,idx){
       ${meta?`<div class="item-meta">${meta}</div>`:''}
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <div class="item-amount">${fmtTL(amountTL)}</div>
+      ${tutarHTML}
       <div class="item-paid ${item.paid?'paid':'unpaid'}" onclick="event.stopPropagation();togglePaid('${tur}',${idx})">${item.paid?'✓':''}</div>
     </div>
   </div>`;
@@ -1837,6 +1783,7 @@ function changeMonth(dir){
 }
 
 function switchAylikTab(tab){
+  if(tab==='sabit' || tab==='degisken') tab = 'gider';
   aylikTab = tab;
   document.querySelectorAll('#page-aylik .tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('#page-aylik .tab-content').forEach(t=>t.classList.remove('active'));
@@ -1864,8 +1811,8 @@ function renderKarsilastir(){
     </tr>`;
   months.forEach(({y,m})=>{
     const d = getEffectiveMonthData(y,m);
-    const gel = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-    const gid = [...(d.sabit||[]),...(d.degisken||[])].reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+    const gel = sumTL(d.gelir);
+    const gid = sumTL(d.gider);
     const net = gel-gid;
     html+=`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:10px 4px;">${MONTHS_TR[m]} ${y}</td>
@@ -1879,18 +1826,33 @@ function renderKarsilastir(){
 }
 
 /* ===========================
-   AYLІК MODAL
+   AYLIK MODAL
 =========================== */
-let modalMod = 'tekrar'; // 'tekrar' | 'teksefer' | 'manuel'
+let modalMod = 'tekrar'; // 'teksefer' | 'tekrar' (her ay sabit) | 'aylik' (her ay değişken) | 'takvim'
+const MOD_IPUCU = {
+  teksefer: 'Yalnızca seçtiğin tarihte bir kez görünür.',
+  tekrar: 'Her ay görünür. Bir ayda tutarı değiştirirsen o aydan itibaren yeni tutar sonraki aylara da yansır.',
+  aylik: 'Her ay görünür ama tutarı her ay ayrı girersin (ör. kredi kartı ekstresi). Girilmeyen ay "Tutar gir" olarak işaretlenir.',
+  takvim: 'Farklı tarih ve tutarlardan oluşan bir ödeme planı gir (ör. okul taksitleri, sigorta).'
+};
 
 function setMod(mod){
+  if(mod==='manuel') mod = 'takvim';
   modalMod = mod;
-  ['tekrar','teksefer','manuel'].forEach(m=>{
+  ['teksefer','tekrar','aylik','takvim'].forEach(m=>{
     document.getElementById('mod-btn-'+m).classList.toggle('active', m===mod);
-    document.getElementById('modal-section-'+m).style.display = m===mod?'block':'none';
   });
-  // Tutar alanı sadece tekrar ve teksefer modlarında görünür
-  document.getElementById('modal-tutar-row').style.display = mod==='manuel'?'none':'block';
+  document.getElementById('modal-section-tekrar').style.display = (mod==='tekrar'||mod==='aylik')?'block':'none';
+  document.getElementById('modal-section-teksefer').style.display = mod==='teksefer'?'block':'none';
+  document.getElementById('modal-section-takvim').style.display = mod==='takvim'?'block':'none';
+  document.getElementById('modal-tutar-row').style.display = mod==='takvim'?'none':'block';
+  document.getElementById('modal-mod-hint').textContent = MOD_IPUCU[mod]||'';
+  const ay = `${MONTHS_TR[curMonth]} ${curYear}`;
+  let lbl = 'Tutar';
+  if(mod==='tekrar') lbl = aylikEditCtx ? `Tutar (${ay} ve sonrası)` : 'Aylık Tutar';
+  if(mod==='aylik') lbl = aylikEditCtx ? `${ay} Tutarı` : `İlk Ay Tutarı (boş bırakabilirsin)`;
+  document.getElementById('modal-tutar-label').textContent = lbl;
+  if(mod==='takvim' && !document.querySelector('#modal-coklu-rows .coklu-row')){ addCokluRow(); addCokluRow(); addCokluRow(); }
 }
 
 let cokluRowCount = 0;
@@ -1904,7 +1866,7 @@ function addCokluRow(tarih, tutar){
   div.id = id;
   div.innerHTML = `
     <input type="date" value="${tarih||today}" placeholder="Tarih">
-    <input type="number" value="${tutar||''}" placeholder="Tutar (TL)" min="0" step="any">
+    <input type="number" value="${tutar!=null?tutar:''}" placeholder="Tutar" min="0" step="any">
     <button class="del-row" onclick="removeCokluRow('${id}')" title="Sil">×</button>
   `;
   document.getElementById('modal-coklu-rows').appendChild(div);
@@ -1922,9 +1884,9 @@ function getCokluRows(){
     const inputs = row.querySelectorAll('input');
     const tarih = inputs[0].value;
     const tutar = parseFloat(inputs[1].value)||0;
-    if(tarih) result.push({tarih, tutar});
+    if(tarih && tutar>0) result.push({tarih, tutar});
   });
-  return result;
+  return result.sort((a,b)=>a.tarih<b.tarih?-1:1);
 }
 
 function fillAylikBaglanti(tur, cat, pf, borc){
@@ -1945,76 +1907,74 @@ function readAylikBaglanti(tur){
 }
 
 function openAylikModal(){
-  openAylikModalFor(aylikTab==='gelir'?'gelir':aylikTab==='sabit'?'sabit':'degisken');
+  openAylikModalFor(aylikTab==='gelir'?'gelir':'gider');
+}
+
+function ayBasi(){ return `${getMonthKey(curYear,curMonth)}-01`; }
+function varsayilanTarih(){
+  // Görüntülenen ay bugünün ayıysa bugünü, değilse o ayın 1'ini öner
+  const t = new Date();
+  return (t.getFullYear()===curYear && t.getMonth()+1===curMonth) ? t.toISOString().split('T')[0] : ayBasi();
 }
 
 function openAylikModalFor(tur){
+  if(tur!=='gelir') tur='gider';
   aylikEditCtx = null;
   document.getElementById('aylik-modal-title').textContent = 'Kalem Ekle';
   document.getElementById('modal-tur').value = tur;
   document.getElementById('modal-ad').value = '';
   document.getElementById('modal-tutar').value = '';
   document.getElementById('modal-para').value = 'TL';
-  // Set default start date to today
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  document.getElementById('modal-bas-tarih').value = todayStr;
-  document.getElementById('modal-tek-tarih').value = todayStr;
-  document.getElementById('modal-gun').value = today.getDate();
+  document.getElementById('modal-coklu-para').value = 'TL';
+  const vt = varsayilanTarih();
+  document.getElementById('modal-bas-tarih').value = vt;
+  document.getElementById('modal-tek-tarih').value = vt;
+  document.getElementById('modal-gun').value = Number(vt.split('-')[2]);
   document.getElementById('modal-sure').value = '';
   document.getElementById('modal-del-btn').style.display = 'none';
   document.getElementById('modal-save-btn').className = 'btn btn-primary btn-full';
-  // Init çoklu rows with 3 blank rows
   document.getElementById('modal-coklu-rows').innerHTML = '';
   cokluRowCount = 0;
-  addCokluRow(); addCokluRow(); addCokluRow();
-  setMod(tur==='degisken'?'manuel':'tekrar');
+  setMod('tekrar');
   fillAylikBaglanti(tur, null, null, null);
   updateTLPreview();
   openModal('aylik-modal');
 }
 
 function openAylikEdit(tur,idx){
+  if(tur!=='gelir') tur='gider';
   const d = getEffectiveMonthData(curYear,curMonth);
   if(idx<0 || idx>=d[tur].length) return;
   const item = d[tur][idx];
-  aylikEditCtx = {tur, idx, id: item.id, grupId: item.grupId||null};
+  aylikEditCtx = {tur, idx, id: item.id, grupId: item._dynamic ? item.grupId : null, item};
+  const tpl = item._dynamic ? sablonBul(item.grupId) : null;
   document.getElementById('aylik-modal-title').textContent = 'Kalemi Düzenle';
   document.getElementById('modal-tur').value = tur;
   document.getElementById('modal-ad').value = item.name;
-  document.getElementById('modal-tutar').value = item.amount||'';
+  document.getElementById('modal-tutar').value = item.tutarGirilmedi ? '' : (item.amount||'');
   document.getElementById('modal-para').value = item.currency||'TL';
+  document.getElementById('modal-coklu-para').value = item.currency||'TL';
 
-  const mod = item.mod || (item.recurring===false?'manuel':'tekrar');
-  const today = new Date().toISOString().split('T')[0];
+  let mod = item.mod || (item.recurring===false?'manuel':'tekrar');
+  if(mod==='manuel') mod = 'takvim';
+  const vt = varsayilanTarih();
 
-  // Init çoklu rows
   document.getElementById('modal-coklu-rows').innerHTML = '';
   cokluRowCount = 0;
-
-  if(mod==='teksefer'){
-    document.getElementById('modal-tek-tarih').value = item.tarih||today;
-    document.getElementById('modal-bas-tarih').value = today;
-    document.getElementById('modal-gun').value = '';
-    document.getElementById('modal-sure').value = '';
-    addCokluRow(); addCokluRow(); addCokluRow();
-  } else if(mod==='manuel'){
-    document.getElementById('modal-bas-tarih').value = today;
-    document.getElementById('modal-tek-tarih').value = today;
-    document.getElementById('modal-gun').value = '';
-    document.getElementById('modal-sure').value = '';
-    // Populate rows from cokluAylar if present, else single row
-    if(item.cokluAylar && item.cokluAylar.length){
-      item.cokluAylar.forEach(r=>addCokluRow(r.tarih, r.tutar));
-    } else {
-      addCokluRow(item.tarih||today, item.amount||'');
-    }
-  } else {
-    // tekrar
-    document.getElementById('modal-bas-tarih').value = item.basTarih||today;
+  document.getElementById('modal-tek-tarih').value = (mod==='teksefer' && item.tarih) || vt;
+  if(mod==='tekrar' || mod==='aylik'){
+    document.getElementById('modal-bas-tarih').value = item.basTarih||ayBasi();
     document.getElementById('modal-gun').value = item.odemeTarih||'';
     document.getElementById('modal-sure').value = item.sure||'';
-    document.getElementById('modal-tek-tarih').value = today;
+  } else {
+    document.getElementById('modal-bas-tarih').value = ayBasi();
+    document.getElementById('modal-gun').value = item.odemeTarih || (item.tarih?Number(item.tarih.split('-')[2]):'');
+    document.getElementById('modal-sure').value = '';
+  }
+  if(tpl && tpl.mod==='takvim'){
+    (tpl.takvim||[]).forEach(r=>addCokluRow(r.tarih, r.tutar));
+  } else if(item.tarih && item.amount){
+    addCokluRow(item.tarih, item.amount);
   }
 
   document.getElementById('modal-del-btn').style.display = 'block';
@@ -2045,164 +2005,136 @@ function updateTLPreview(){
   }
 }
 
+// Ay içinde kayıtlı (şablonsuz) eski bir kalemi kaldır; bağlı portföy işlemlerini geri al
+function storedKalemSil(key, id){
+  const d = aylikData[key]; if(!d) return;
+  aylikLinkGeriAl(l=>l.ay===key && l.ref===id);
+  GIDER_TURLERI.concat(['sabit','degisken']).forEach(t=>{ if(d[t]) d[t] = d[t].filter(i=>i.id!==id); });
+}
+
 function saveAylikItem(){
-  const tur = document.getElementById('modal-tur').value;
+  const tur = document.getElementById('modal-tur').value==='gelir' ? 'gelir' : 'gider';
   const name = document.getElementById('modal-ad').value.trim();
-  const amount = parseFloat(document.getElementById('modal-tutar').value)||0;
+  const tutarStr = document.getElementById('modal-tutar').value;
+  const amount = parseFloat(tutarStr)||0;
   const currency = document.getElementById('modal-para').value;
   const mod = modalMod;
-
+  const key = getMonthKey(curYear,curMonth);
   if(!name){showToast('Ad boş olamaz');return;}
   const bag = readAylikBaglanti(tur);
-
-  let newItem = {id:uid(), name, amount, currency, mod, paid:false};
+  const ctx = aylikEditCtx;
+  const eski = ctx && ctx.grupId ? sablonBul(ctx.grupId) : null;
+  const grupId = (eski && eski.grupId) || ('g'+uid());
+  let template, gitY=curYear, gitM=curMonth;
 
   if(mod==='teksefer'){
     const tarih = document.getElementById('modal-tek-tarih').value;
     if(!tarih){showToast('Lütfen tarih girin');return;}
-    // Tek seferlik: store as lightweight template in recurringItems
-    const [y,m] = tarih.split('-').map(Number);
-    const grupId = (aylikEditCtx && aylikEditCtx.grupId) || ('g'+uid());
-    // If editing: remove old entry (it might be stored or dynamic)
-    if(aylikEditCtx && aylikEditCtx.grupId){
-      recurringItems = recurringItems.filter(r=>r.grupId!==aylikEditCtx.grupId);
-      // Also remove old paid state if date changed
-    }
-    const template = {
-      grupId,
-      name, amount, currency, tur,
-      ...bag,
-      mod: 'teksefer',
-      tarih
-    };
-    const existingIdx = recurringItems.findIndex(r=>r.grupId===grupId);
-    if(existingIdx>=0) recurringItems[existingIdx]=template;
-    else recurringItems.push(template);
-    curYear=y; curMonth=m;
-  } else if(mod==='manuel'){
-    // Çoklu ay modu: her satır ayrı aya kaydedilir
+    if(!(amount>0)){showToast('Lütfen tutar girin');return;}
+    template = {grupId, name, amount, currency, tur, ...bag, mod:'teksefer', tarih};
+    [gitY,gitM] = tarih.split('-').map(Number);
+  } else if(mod==='takvim'){
     const rows = getCokluRows();
-    if(!rows.length){showToast('En az bir satır girin');return;}
-    const currency = document.getElementById('modal-coklu-para').value;
-
-    // Eğer düzenleme modundaysa önce mevcut kaydı sil (stored item)
-    if(aylikEditCtx){
-      const key = getMonthKey(curYear,curMonth);
-      const eff = getEffectiveMonthData(curYear,curMonth);
-      const oldItem = eff[aylikEditCtx.tur][aylikEditCtx.idx];
-      if(oldItem && !oldItem._dynamic && aylikData[key] && aylikData[key][aylikEditCtx.tur]){
-        aylikLinkGeriAl(l=>l.ay===key && l.ref===oldItem.id);
-        aylikData[key][aylikEditCtx.tur] = aylikData[key][aylikEditCtx.tur].filter(i=>i.id!==oldItem.id);
-      }
-    }
-
-    // Her satırı ilgili aya ekle
-    let firstY=null, firstM=null;
-    rows.forEach((row,i)=>{
-      const [ry,rm] = row.tarih.split('-').map(Number);
-      const rd = parseInt(row.tarih.split('-')[2]);
-      if(i===0){firstY=ry;firstM=rm;}
-      const key = getMonthKey(ry,rm);
-      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[]};
-      ['gelir','sabit','degisken'].forEach(t=>{if(!aylikData[key][t])aylikData[key][t]=[];});
-      const entry = {
-        id:uid(), name, amount:row.tutar, currency,
-        mod:'manuel', recurring:false,
-        tarih:row.tarih, odemeTarih:rd,
-        taksit:null, kalanTaksit:null, basTarih:null, sure:null,
-        ...bag,
-        paid:false
-      };
-      aylikData[key][tur].push(entry);
-    });
-    if(firstY) {curYear=firstY; curMonth=firstM;}
-    saveAylik();
-    closeModal('aylik-modal');
-    renderAylik();
-    showToast(`${rows.length} aya kaydedildi`);
-    return;
+    if(!rows.length){showToast('En az bir tarih ve tutar girin');return;}
+    const cur = document.getElementById('modal-coklu-para').value;
+    template = {grupId, name, amount: rows[0].tutar, currency: cur, tur, ...bag, mod:'takvim', takvim: rows};
+    if(!ctx){ [gitY,gitM] = rows[0].tarih.split('-').map(Number); }
   } else {
-    // tekrar — sadece bir template kaydı (hafif, tüm aylar dinamik hesaplanır)
+    // tekrar (her ay sabit) | aylik (her ay değişken)
     const basTarih = document.getElementById('modal-bas-tarih').value;
     const sure = parseInt(document.getElementById('modal-sure').value)||null;
     const gun = parseInt(document.getElementById('modal-gun').value)||null;
     if(!basTarih){showToast('Lütfen başlangıç tarihi girin');return;}
-
-    const [sy,sm] = basTarih.split('-').map(Number);
-    const grupId = (aylikEditCtx && aylikEditCtx.grupId) || ('g'+uid());
-
-    // Eğer düzenleme ise: eski template'i güncelle
-    const existingIdx = recurringItems.findIndex(r=>r.grupId===grupId);
-    // Preserve cat from existing template if editing
-    const existingCat = (aylikEditCtx && aylikEditCtx.grupId)
-      ? (recurringItems.find(r=>r.grupId===aylikEditCtx.grupId)||{}).cat
-      : undefined;
-    const template = {
-      grupId,
-      name,
-      ...bag,
-      amount: newItem.amount,
-      currency: newItem.currency,
-      tur,
-      mod: 'tekrar',
-      basTarih,
-      sure,
-      odemeTarih: gun
-    };
-    if(existingIdx>=0){
-      recurringItems[existingIdx] = template;
+    if(mod==='tekrar' && !(amount>0) && !ctx){showToast('Lütfen tutar girin');return;}
+    const tutarlar = {...((eski && eski.tutarlar) || {})};
+    let baseAmount = eski ? (eski.amount||0) : amount;
+    const basKey = basTarih.slice(0,7);
+    if(!ctx){
+      // Yeni kalem
+      if(mod==='aylik' && tutarStr!=='') tutarlar[basKey] = amount;
+      baseAmount = mod==='tekrar' ? amount : 0;
+      [gitY,gitM] = basTarih.split('-').map(Number);
+    } else if(mod==='aylik'){
+      if(tutarStr==='') delete tutarlar[key]; else tutarlar[key] = amount;
     } else {
-      recurringItems.push(template);
+      // Her ay sabit: girilen tutar bu aydan itibaren geçerli (sonraki aylara yansır)
+      if(!eski){
+        baseAmount = amount;
+      } else if(eski.mod==='aylik'){
+        tutarlar[key] = amount; if(!(baseAmount>0)) baseAmount = amount;
+      } else if(eski.mod!=='tekrar'){
+        baseAmount = amount; Object.keys(tutarlar).forEach(k=>delete tutarlar[k]);
+      } else if(sablonTutar(eski, key).amount !== amount){
+        if(key <= basKey){ baseAmount = amount; Object.keys(tutarlar).forEach(k=>{ if(k<=key) delete tutarlar[k]; }); }
+        else tutarlar[key] = amount;
+      }
     }
-    // Aylik paid durumları ve diğer stored verileri dokunma
-    curYear=sy; curMonth=sm;
+    template = {grupId, name, ...bag, amount: baseAmount, currency, tur, mod, basTarih, sure, odemeTarih: gun, tutarlar};
+    if(!Object.keys(tutarlar).length) delete template.tutarlar;
   }
 
+  // Şablonsuz (eski tip) kayıtlı kalem düzenleniyorsa: şablona dönüştür
+  if(ctx && !ctx.grupId){
+    const old = ctx.item;
+    storedKalemSil(key, old.id);
+    // Tekrarlayan moda geçiyorsa, bu aydan sonraki aylarda aynı adlı eski kayıtları şablona taşı
+    if(mod==='tekrar' || mod==='aylik'){
+      Object.keys(aylikData).filter(k=>k>key).forEach(k=>{
+        const d = aylikData[k];
+        (d[tur]||[]).filter(i=>!i.grupId && i.name===old.name).forEach(i=>{
+          if(mod==='aylik' || i.amount!==template.amount){ template.tutarlar = template.tutarlar||{}; template.tutarlar[k] = i.amount||0; }
+          if(i.paid){ d.paidMap = d.paidMap||{}; d.paidMap[grupId] = true; }
+          (state.islemler||[]).forEach(x=>{ if(x.link && x.link.ay===k && x.link.ref===i.id) x.link.ref = grupId; });
+          d[tur] = d[tur].filter(x=>x.id!==i.id);
+        });
+      });
+    }
+    if(old.paid && mod!=='takvim'){ aylikData[key] = aylikData[key]||bosAy(); aylikData[key].paidMap = aylikData[key].paidMap||{}; aylikData[key].paidMap[grupId]=true; }
+  }
+
+  const idx = recurringItems.findIndex(r=>r.grupId===grupId);
+  if(idx>=0) recurringItems[idx] = template; else recurringItems.push(template);
+  curYear = gitY; curMonth = gitM;
   saveAylik();
   closeModal('aylik-modal');
   renderAylik();
+  if(mod==='takvim') showToast(`Ödeme takvimi kaydedildi (${template.takvim.length} ödeme)`);
 }
 
 function deleteAylikItem(){
   if(!aylikEditCtx) return;
-  const eff = getEffectiveMonthData(curYear,curMonth);
-  const item = eff[aylikEditCtx.tur][aylikEditCtx.idx];
+  const item = aylikEditCtx.item;
   if(!item) return;
+  const key = getMonthKey(curYear,curMonth);
 
-  if(item.grupId && (item.mod==='tekrar' || item.mod==='teksefer')){
-    // Tekrarlayan: tüm ayları mı yoksa sadece bu ayı mı sil?
-    const tumAylari = confirm(`"${item.name}" ${item.mod==='tekrar'?'tekrarlayan':'tek seferlik'} bir kalem.\n\nTÜM KAYDI SİL → Tamam\nSADECE BU AYDAN ÇIKAR → İptal`);
+  if(item._dynamic && item.grupId){
+    const tipAd = {tekrar:'her ay sabit', aylik:'her ay değişken', teksefer:'tek seferlik', takvim:'ödeme takvimli'}[item.mod]||'tekrarlayan';
+    const tumAylari = item.mod==='teksefer' ? true
+      : confirm(`"${item.name}" ${tipAd} bir kalem.\n\nTÜM KAYDI SİL → Tamam\nSADECE BU AYDAN ÇIKAR → İptal`);
     if(tumAylari){
       const gid = item.grupId;
-      aylikLinkGeriAl(l=>l.ref===gid);
-      // Remove from recurringItems
+      aylikLinkGeriAl(l=>l.ref===gid || String(l.ref).startsWith(gid+'@'));
       recurringItems = recurringItems.filter(r=>r.grupId!==gid);
       state.recurringSilinen = [...(state.recurringSilinen||[]), gid].slice(-500);
       (state.borclar||[]).forEach(b=>{ if(b.taksitGrupId===gid) delete b.taksitGrupId; });
-      // Remove any paid state from all months
       Object.keys(aylikData).forEach(k=>{
-        if(aylikData[k].paidMap) delete aylikData[k].paidMap[gid];
-        // Also clean up any old-style stored entries (migration remnants)
-        ['gelir','sabit','degisken'].forEach(t=>{
+        const pm = aylikData[k].paidMap;
+        if(pm) Object.keys(pm).forEach(p=>{ if(p===gid || p.startsWith(gid+'@')) delete pm[p]; });
+        GIDER_TURLERI.forEach(t=>{
           if(aylikData[k][t]) aylikData[k][t] = aylikData[k][t].filter(i=>i.grupId!==gid);
         });
       });
     } else {
-      // "Sadece bu ay": mark as explicitly excluded for this month
-      const key = getMonthKey(curYear,curMonth);
-      aylikLinkGeriAl(l=>l.ay===key && l.ref===item.grupId);
-      if(!aylikData[key]) aylikData[key]={gelir:[],sabit:[],degisken:[],paidMap:{}};
-      if(aylikData[key].paidMap) delete aylikData[key].paidMap[item.grupId];
+      const gid = item.grupId;
+      aylikLinkGeriAl(l=>l.ay===key && (l.ref===gid || String(l.ref).startsWith(gid+'@')));
+      if(!aylikData[key]) aylikData[key]=bosAy();
+      const pm = aylikData[key].paidMap;
+      if(pm) Object.keys(pm).forEach(p=>{ if(p===gid || p.startsWith(gid+'@')) delete pm[p]; });
       if(!aylikData[key].excludedMap) aylikData[key].excludedMap={};
-      aylikData[key].excludedMap[item.grupId] = true;
+      aylikData[key].excludedMap[gid] = true;
     }
   } else {
-    // Regular stored item: remove from stored list
-    const key = getMonthKey(curYear,curMonth);
-    aylikLinkGeriAl(l=>l.ay===key && l.ref===item.id);
-    if(aylikData[key] && aylikData[key][aylikEditCtx.tur]){
-      aylikData[key][aylikEditCtx.tur] = aylikData[key][aylikEditCtx.tur].filter(i=>i.id!==item.id);
-    }
+    storedKalemSil(key, item.id);
   }
 
   saveAylik();
@@ -2455,7 +2387,7 @@ function aylikLinkIslem(item, tur, key){
   }
   if(!deltas.length) return null;
   return {id:uid(), tarih:item.tarih||`${key}-01`, tip:tur==='gelir'?'gelir':'gider', hesapId, aciklama:item.name,
-    deltas, tutarTL:amtTL, ozet:`${item.name} · ${parcalar.join(' · ')}`, link:{ay:key, ref:item.grupId||item.id}};
+    deltas, tutarTL:amtTL, ozet:`${item.name} · ${parcalar.join(' · ')}`, link:{ay:key, ref:item.paidKey||item.grupId||item.id}};
 }
 function aylikLinkGeriAl(filtre){
   (state.islemler||[]).filter(x=>x.link && filtre(x.link)).map(x=>x.id).forEach(id=>removeIslem(id));
@@ -2934,7 +2866,7 @@ function saveBorcItem(){
     const bas = document.getElementById('borc-taksit-bas').value || new Date().toISOString().slice(0,10);
     const mevcut = item.taksitGrupId ? recurringItems.find(r=>r.grupId===item.taksitGrupId) : null;
     const tpl = {grupId: mevcut?mevcut.grupId:'g'+uid(), name:`${ad||BORC_LABELS[tur]} taksit`, cat:'borc', amount:taksit,
-      currency:borcCur({tur}), tur:'sabit', mod:'tekrar', basTarih:bas, sure:sayi, odemeTarih:parseInt(bas.split('-')[2])||1,
+      currency:borcCur({tur}), tur:'gider', mod:'tekrar', basTarih:bas, sure:sayi, odemeTarih:parseInt(bas.split('-')[2])||1,
       borcId:item.id, pfKalemId:document.getElementById('borc-taksit-pf').value||null};
     if(mevcut) Object.assign(mevcut, tpl); else recurringItems.push(tpl);
     item.taksitGrupId = tpl.grupId;
@@ -4056,7 +3988,7 @@ document.querySelectorAll('.modal-overlay').forEach(overlay=>{
 /* ===========================
    TEKRARLAYAN KALEMLER — kalıcılık & geçiş (Talep 4)
 =========================== */
-function recKey(r){ return [r.tur,r.mod,r.name,r.basTarih||'',r.tarih||'',r.sure||'',r.amount].join('|'); }
+function recKey(r){ return [r.tur,r.mod,r.name,r.basTarih||'',r.tarih||'',r.sure||'',r.amount,r.takvim?JSON.stringify(r.takvim):''].join('|'); }
 // primary (ör. buluttan gelen) öncelikli birleştirme; silinenler ve kopyalar ayıklanır
 function mergeRecurring(primary){
   const silinen = new Set(state.recurringSilinen||[]);
@@ -4068,18 +4000,18 @@ function mergeRecurring(primary){
   });
   // Aynı adla tutarlı bir şablon varsa 0 tutarlı varsayılan kopyayı at
   const dolu = new Set(out.filter(r=>r.amount>0).map(r=>r.tur+'|'+r.name));
-  recurringItems = out.filter(r=>r.amount>0 || !dolu.has(r.tur+'|'+r.name));
+  recurringItems = out.filter(r=>r.amount>0 || r.mod==='aylik' || r.mod==='takvim' || !dolu.has(r.tur+'|'+r.name));
 }
 // Aylık veride "tekrar" modunda ama şablonu olmayan (yalnız o aya yazılmış) kalemleri şablona çevir
 function migrateStoredTekrar(){
   let n = 0;
   Object.keys(aylikData).forEach(key=>{
     const md = aylikData[key]; if(!md) return;
-    ['gelir','sabit','degisken'].forEach(tur=>{
+    ['gelir','gider','sabit','degisken'].forEach(tur=>{
       if(!Array.isArray(md[tur])) return;
       md[tur] = md[tur].filter(i=>{
         if(i.mod!=='tekrar' || i.grupId || !i.basTarih) return true;
-        let t = recurringItems.find(r=>r.mod==='tekrar' && r.tur===tur && r.name===i.name && r.basTarih===i.basTarih);
+        let t = recurringItems.find(r=>r.mod==='tekrar' && (r.tur===tur || (tur!=='gelir' && r.tur!=='gelir')) && r.name===i.name && r.basTarih===i.basTarih);
         if(!t){
           t = {grupId:'g'+uid(), name:i.name, cat:i.cat||null, amount:i.amount, currency:i.currency||'TL', tur, mod:'tekrar',
                basTarih:i.basTarih, sure:i.sure||null, odemeTarih:i.odemeTarih||null, pfKalemId:i.pfKalemId||null, borcId:i.borcId||null};
@@ -4129,7 +4061,7 @@ function yaklasanOdemeler(gunSonra){
     let y = bugun.getFullYear(), m = bugun.getMonth()+1+off;
     if(m<1){m=12;y--;} if(m>12){m=1;y++;}
     const eff = getEffectiveMonthData(y,m), key = getMonthKey(y,m);
-    ['sabit','degisken'].forEach(tur=>{
+    ['gider'].forEach(tur=>{
       eff[tur].forEach((it,idx)=>{
         if(it.paid || !(it.amount>0)) return;
         const tarihStr = it.tarih || `${key}-${String(it.odemeTarih||1).padStart(2,'0')}`;
@@ -4149,8 +4081,8 @@ function renderHome(){
   const now = new Date(), y = now.getFullYear(), m = now.getMonth()+1;
   const eff = getEffectiveMonthData(y,m);
   const gel = eff.gelir.reduce((a,i)=>a+toTL(i.amount,i.currency||'TL'),0);
-  const gid = [...eff.sabit,...eff.degisken].reduce((a,i)=>a+toTL(i.amount,i.currency||'TL'),0);
-  const odenen = [...eff.sabit,...eff.degisken].filter(i=>i.paid).reduce((a,i)=>a+toTL(i.amount,i.currency||'TL'),0);
+  const gid = eff.gider.reduce((a,i)=>a+toTL(i.amount,i.currency||'TL'),0);
+  const odenen = eff.gider.filter(i=>i.paid).reduce((a,i)=>a+toTL(i.amount,i.currency||'TL'),0);
   el.innerHTML = `<div class="nw-card">
     <div class="nw-main"><div class="nw-main-label">Net Servet</div>
       <div class="nw-main-value" style="color:${s.net>=0?'var(--green)':'var(--red)'}">${fmtTL(Math.round(s.net))}</div></div>
@@ -4262,7 +4194,7 @@ function giderDagilimi(items, mod){
 }
 function renderOzetGrafik(d, gelirTL){
   const el = document.getElementById('ozet-grafik'); if(!el) return;
-  const parts = giderDagilimi([...d.sabit,...d.degisken], grafikMod);
+  const parts = giderDagilimi(d.gider, grafikMod);
   if(!parts.length){ el.innerHTML=''; return; }
   const tot = parts.reduce((s,p)=>s+p.v,0);
   el.innerHTML = `<div class="chart-card">
@@ -4284,14 +4216,14 @@ function renderYillik(){
   for(let m=1;m<=12;m++){
     const d = getEffectiveMonthData(y,m);
     const g = d.gelir.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-    const gi = [...d.sabit,...d.degisken].reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
-    tumGider.push(...d.sabit, ...d.degisken);
+    const gi = d.gider.reduce((s,i)=>s+toTL(i.amount,i.currency||'TL'),0);
+    tumGider.push(...d.gider);
     tg+=g; tgid+=gi; if(gi>maxGid.v) maxGid={m,v:gi};
     const n=g-gi;
     rows += `<tr style="cursor:pointer;" onclick="curMonth=${m};switchAylikTab('ozet')"><td>${MONTHS_TR[m].slice(0,3)}</td><td style="color:var(--green)">${g?fmtKisa(g):'—'}</td><td style="color:var(--red)">${gi?fmtKisa(gi):'—'}</td><td style="color:${n>=0?'var(--green)':'var(--red)'}">${g||gi?fmtKisa(n):'—'}</td></tr>`;
   }
   const net = tg-tgid, oran = tg>0 ? net/tg*100 : 0;
-  const ayDolu = Array.from({length:12},(_,i)=>i+1).filter(m=>{const d=getEffectiveMonthData(y,m);return [...d.gelir,...d.sabit,...d.degisken].some(i=>i.amount>0);}).length||1;
+  const ayDolu = Array.from({length:12},(_,i)=>i+1).filter(m=>{const d=getEffectiveMonthData(y,m);return [...d.gelir,...d.gider].some(i=>i.amount>0);}).length||1;
   const kat = giderDagilimi(tumGider,'kategori'), kal = giderDagilimi(tumGider,'kalem').filter(x=>x.key!=='_rest').slice(0,5);
   const maxK = Math.max(...kat.map(x=>x.v),1);
   // Portföy
@@ -4350,9 +4282,9 @@ function exportCSV(tip){
     csvIndir(`islemler_${t}.csv`, rows);
   } else if(tip==='aylik'){
     const rows=[['Ay','Tür','Kalem','Kategori','Tutar','Para Birimi','TL Karşılığı','Durum','Tarih']];
-    const tl = {gelir:'Gelir',sabit:'Sabit Gider',degisken:'Değişken Gider'};
+    const tl = {gelir:'Gelir',gider:'Gider'};
     for(let m=1;m<=12;m++){ const d=getEffectiveMonthData(curYear,m);
-      ['gelir','sabit','degisken'].forEach(tur=>d[tur].filter(i=>i.amount>0).forEach(i=>rows.push([`${MONTHS_TR[m]} ${curYear}`, tl[tur], i.name, CAT_LABEL[i.cat]||'', i.amount, i.currency||'TL', toTL(i.amount,i.currency||'TL'), i.paid?(tur==='gelir'?'Alındı':'Ödendi'):'Bekliyor', i.tarih||'']))); }
+      ['gelir','gider'].forEach(tur=>d[tur].filter(i=>i.amount>0).forEach(i=>rows.push([`${MONTHS_TR[m]} ${curYear}`, tl[tur], i.name, CAT_LABEL[i.cat]||'', i.amount, i.currency||'TL', toTL(i.amount,i.currency||'TL'), i.paid?(tur==='gelir'?'Alındı':'Ödendi'):'Bekliyor', i.tarih||'']))); }
     csvIndir(`gelir_gider_${curYear}.csv`, rows);
   } else if(tip==='borclar'){
     const rows=[['Tür','Açıklama','Kalan','Para Birimi','TL Karşılığı','Vade','Aylık Taksit','Taksit Sayısı']];
