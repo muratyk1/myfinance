@@ -1764,7 +1764,28 @@ async function doSave(force){
   saving = false;
   if(saveAgain){ saveAgain = false; doSave(); }
 }
+// İçerik karşılaştırması: kur, servet anlık görüntüsü ve meta bilgisi kullanıcı değişikliği sayılmaz
+function stableStr(v){
+  if(Array.isArray(v)) return '['+v.map(stableStr).join(',')+']';
+  if(v && typeof v==='object') return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableStr(v[k])).join(',')+'}';
+  return JSON.stringify(v===undefined?null:v);
+}
+function icerikImza(st, ay, rec){
+  const c = {...st}; delete c._meta; delete c.servetGecmisi; delete c.kurlar; delete c.recurring;
+  const a = {}; Object.keys(ay||{}).forEach(k=>{ const d = ay[k]; if(d && ((d.gelir||[]).length || (d.gider||[]).length || (d.sabit||[]).length || (d.degisken||[]).length || Object.keys(d.paidMap||{}).length || Object.keys(d.excludedMap||{}).length)) a[k]=d; });
+  return stableStr({c, a, r:[...(rec||[])].sort((x,y)=>String(x.grupId).localeCompare(String(y.grupId)))});
+}
+function ayniIcerik(remote){
+  try{
+    const rs = JSON.parse(remote.state||'{}');
+    const ra = remote.aylik ? JSON.parse(remote.aylik) : {};
+    const rr = remote.recurring ? JSON.parse(remote.recurring) : (rs.recurring||[]);
+    return icerikImza(rs, ra, rr) === icerikImza(state, aylikData, recurringItems);
+  }catch(e){ return false; }
+}
 async function syncConflict(remote, rm){
+  // Gerçek bir veri farkı yoksa (ör. sadece anahtar/adres kaydedildi) soru sormadan buluttakiyle eşitle
+  if(ayniIcerik(remote)){ applyRemote(remote); setDirty(false); showSyncStatus('ok', saatStr()); refreshPage(); return; }
   conflictOpen = true; showSyncStatus('error','Çakışma');
   try{ localStorage.setItem('myfinance_cakisma_yedek', snapshotAll()); }catch(e){}
   const ne = new Date(rm.rev).toLocaleString('tr-TR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
@@ -4584,7 +4605,11 @@ function saveGasUrl(){
     showToast('Geçersiz URL. script.google.com adresi olmalı.');
     return;
   }
-  setGasUrl(url);
+  GAS_URL = url;
+  localStorage.setItem('myfinance_gas_url', GAS_URL);
+  // Adres/anahtar değişikliği veri değişikliği değildir: önce buluttakini oku, gerekirse sonra yaz
+  if(GAS_URL) syncFromSheets().then(()=>{ refreshPage(); });
+  else syncToSheets();
   updateGasUrlStatus();
   showToast(url ? 'URL kaydedildi, senkronize ediliyor…' : 'URL temizlendi, yerel moda geçildi.');
 }
